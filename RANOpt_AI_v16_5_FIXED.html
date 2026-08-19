@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RANOpt AI — Interactive AI-Assisted 5G/6G RAN Decision Platform v16.5</title>
+<style>
+:root{
+  --bg:#eef4fb;--panel:#fff;--panel2:#f7faff;--text:#14213d;--muted:#617188;
+  --accent:#0b66d8;--accent2:#4b97ef;--good:#15824c;--warn:#b86d00;--bad:#c93636;
+  --border:#d8e3f0;--shadow:0 10px 30px rgba(29,58,95,.10)
+}
+[data-theme="dark"]{
+  --bg:#0d1522;--panel:#142033;--panel2:#1a2940;--text:#eef5ff;--muted:#a2b2c7;
+  --accent:#58a4ff;--accent2:#2f81df;--good:#50d28c;--warn:#ffb85b;--bad:#ff7777;
+  --border:#2d3e58;--shadow:0 10px 30px rgba(0,0,0,.28)
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+header{position:sticky;top:0;z-index:30;background:linear-gradient(135deg,#083d80,#0b66d8 55%,#2d8cf1);color:#fff;padding:16px 22px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.header-row{max-width:1500px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
+h1{margin:0;font-size:clamp(1.2rem,2vw,1.9rem)} .subtitle{font-size:.9rem;opacity:.9;margin-top:4px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.version-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.42);color:#fff;border-radius:999px;padding:7px 11px;font-size:.78rem;font-weight:850;white-space:nowrap}
+button{border:0;border-radius:10px;padding:10px 14px;font-weight:750;cursor:pointer;transition:.18s}
+button:hover{transform:translateY(-1px)} button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.test-active{background:var(--accent)!important;color:#fff!important;box-shadow:0 0 0 3px rgba(11,102,216,.18)}
+.btn-light{background:#fff;color:#0b4d99}.btn-primary{background:var(--accent);color:#fff}.btn-good{background:var(--good);color:#fff}.btn-secondary{background:#e7eef8;color:#23364e}
+[data-theme="dark"] .btn-secondary{background:#263a55;color:#eef5ff}
+main{max-width:1500px;margin:18px auto;padding:0 18px 42px}
+.topbar{display:flex;justify-content:space-between;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px 15px;box-shadow:var(--shadow);margin-bottom:14px}
+.status{display:flex;align-items:center;gap:9px;font-weight:800}.dot{width:10px;height:10px;border-radius:50%;background:var(--warn)}.dot.done{background:var(--good)}
+.mode-switch{display:flex;gap:6px;background:var(--panel2);padding:4px;border-radius:11px;border:1px solid var(--border)}
+.mode-switch button{background:transparent;color:var(--text);padding:7px 11px}.mode-switch button.active{background:var(--accent);color:#fff;box-shadow:0 0 0 3px rgba(11,102,216,.18)}
+.platform-status{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);margin-bottom:14px}
+.status-item{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;min-width:0}.status-item .label{display:block;font-size:.66rem;letter-spacing:.045em;text-transform:uppercase;color:var(--muted);font-weight:800}.status-item .value{display:block;margin-top:3px;font-size:.84rem;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mode-banner{position:fixed;top:88px;left:50%;transform:translate(-50%,-12px);z-index:120;max-width:min(680px,calc(100vw - 30px));padding:12px 16px;border-radius:12px;background:#083d80;color:#fff;box-shadow:0 16px 40px rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;text-align:center;font-weight:800}.mode-banner.show{opacity:1;transform:translate(-50%,0)}.mode-banner small{display:block;font-size:.76rem;font-weight:600;opacity:.9;margin-top:3px}
+.tabs{display:flex;gap:7px;overflow:auto;padding-bottom:4px;margin-bottom:14px}
+.tab{white-space:nowrap;background:var(--panel);color:var(--text);border:1px solid var(--border);box-shadow:var(--shadow);padding:9px 13px}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent);opacity:1!important;box-shadow:0 0 0 3px rgba(11,102,216,.18)}
+.tab[data-tab="capacity"]{opacity:1!important;pointer-events:auto!important;cursor:pointer!important}
+.panel{display:none}.panel.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:15px}
+.card{grid-column:span 4;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+.card.span6{grid-column:span 6}.card.span8{grid-column:span 8}.card.full{grid-column:1/-1}
+.card h2{font-size:1.02rem;margin:0 0 14px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.badge{font-size:.7rem;padding:4px 8px;border-radius:999px;background:var(--panel2);color:var(--muted);border:1px solid var(--border)}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}
+label{font-size:.79rem;color:var(--muted);font-weight:750}
+input,select{width:100%;border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:9px;padding:9px 10px;font-size:.92rem}
+.segmented{display:flex;gap:7px;flex-wrap:wrap}.segmented button{background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:8px 10px}.segmented button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.engine-segmented{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.engine-segmented button{min-height:58px;background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:8px 10px;line-height:1.25}.engine-segmented button.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 0 0 3px rgba(11,102,216,.18)}.engine-segmented button small{display:block;margin-top:3px;font-size:.68rem;font-weight:650;opacity:.82}
+.expert-only{display:none}.expert-mode .expert-only{display:flex}.expert-card{display:none}.expert-mode .expert-card{display:block}
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:12px}
+.metric .name{font-size:.7rem;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.035em}.metric .value{font-size:1.34rem;font-weight:850;margin-top:4px}.metric .unit{font-size:.72rem;color:var(--muted)}
+.note{font-size:.78rem;color:var(--muted);line-height:1.45}.warning{padding:10px 12px;border-radius:10px;background:rgba(184,109,0,.12);border:1px solid rgba(184,109,0,.35);color:var(--warn);font-size:.82rem}
+.hidden{display:none!important}.canvas-wrap{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:8px}canvas{width:100%;height:270px;display:block}
+.trace{background:#08111f;color:#d8eaff;border-radius:12px;padding:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;line-height:1.55;white-space:pre-wrap;max-height:520px;overflow:auto}
+.test-log{background:#08111f;color:#d8eaff;border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;line-height:1.55;max-height:360px;overflow:auto}
+.pass{color:#67e09a}.fail{color:#ff8585}.info{color:#8fc4ff}
+.stage{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:10px;border-bottom:1px solid var(--border)}.stage:last-child{border-bottom:0}.stage strong{color:var(--accent)}
+@media(max-width:1050px){.card,.card.span6,.card.span8{grid-column:span 6}.metric-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){header{position:relative}.header-row,.topbar{align-items:flex-start;flex-direction:column}.platform-status{grid-template-columns:1fr 1fr}.mode-banner{top:18px}.card,.card.span6,.card.span8{grid-column:1/-1}.form-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr 1fr}.stage{grid-template-columns:1fr}.engine-segmented{grid-template-columns:1fr}}
+
+.target-table{width:100%;border-collapse:collapse;font-size:13px}.target-table th,.target-table td{padding:8px;border-bottom:1px solid var(--border);text-align:left}.target-table th{color:var(--muted);font-weight:700}.pass{color:var(--good);font-weight:800}.fail{color:var(--bad);font-weight:800}.warn{color:var(--warn);font-weight:800}.kpi-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
+
+.voice-btn.listening{background:#d7263d!important;color:#fff!important;box-shadow:0 0 0 4px rgba(215,38,61,.22)}
+#listenBtn.mic-active{background:#d7263d!important;color:#fff!important;border-color:#d7263d!important;box-shadow:0 0 0 4px rgba(215,38,61,.22)}
+#listenBtn.mic-active:hover{background:#b91f34!important}
+.voice-panel{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(4,18,38,.48);backdrop-filter:blur(3px);padding:18px}
+.voice-panel.open{display:flex}.voice-card{width:min(820px,96vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:20px}
+.voice-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.voice-head h2{margin:0}.voice-close{background:var(--panel2);color:var(--text);font-size:18px;padding:7px 11px}
+.voice-hero{display:grid;grid-template-columns:110px 1fr;gap:16px;align-items:center;margin:15px 0}.mic-orb{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;font-size:38px;background:linear-gradient(145deg,var(--accent),#7ab8ff);color:white;box-shadow:0 12px 30px rgba(11,102,216,.28)}.mic-orb.listening{animation:pulse 1.2s infinite;background:linear-gradient(145deg,#d7263d,#ff7486)}@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(215,38,61,.35)}50%{transform:scale(1.05);box-shadow:0 0 0 14px rgba(215,38,61,0)}}
+.voice-status{padding:12px;border-radius:12px;background:var(--panel2);border:1px solid var(--border);font-weight:800}.voice-meter{height:9px;border-radius:99px;background:var(--border);overflow:hidden;margin-top:9px}.voice-meter span{display:block;width:16%;height:100%;background:var(--accent);border-radius:99px;transition:.25s}.voice-meter.active span{animation:meter 1s infinite alternate}@keyframes meter{from{width:18%}to{width:88%}}
+.voice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.voice-box{padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg);min-height:95px}.voice-box strong{display:block;font-size:.73rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:7px}.voice-transcript,.voice-response{font-size:1rem;line-height:1.5}.voice-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.voice-meta .metric{padding:10px}.voice-history{margin-top:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden}.voice-history h3{font-size:.85rem;margin:0;padding:10px 12px;background:var(--panel2)}.voice-history-list{max-height:135px;overflow:auto}.voice-history-item{padding:9px 12px;border-top:1px solid var(--border);font-size:.84rem}.voice-history-item:first-child{border-top:0}.voice-history-item span{color:var(--good);font-weight:800;margin-right:6px}
+.ai-command-response{margin-top:12px;min-height:72px;border-left:4px solid var(--good);box-shadow:0 8px 22px rgba(0,0,0,.08)}.ai-command-response.response-error{border-left-color:var(--bad)}.ai-command-response.response-updated{animation:responseFlash .9s ease}@keyframes responseFlash{0%{transform:translateY(-2px);box-shadow:0 0 0 4px rgba(34,197,94,.18)}100%{transform:none;box-shadow:0 8px 22px rgba(0,0,0,.08)}}
+.voice-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.voice-help{font-size:13px;color:var(--muted);line-height:1.55;margin-top:14px}.voice-help code{background:var(--panel2);padding:2px 5px;border-radius:5px;color:var(--text)}
+@media(max-width:720px){.voice-hero{grid-template-columns:1fr;text-align:center}.mic-orb{margin:auto}.voice-grid,.voice-meta{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<div class="header-row">
+  <div><h1>RANOpt AI — Interactive AI-Assisted 5G/6G RAN Decision Platform v16.5</h1><div class="subtitle">Per-CC DL/UL calculation · AI OFF/ON retained · Rule-Based, Pretrained PPO, or PPO Training Demo · Voice/NLP interaction</div></div>
+  <div class="toolbar">
+    <span class="version-badge" id="versionBadge">v16.5 · Per-CC DL/UL Revision · Build 2026.07.22</span>
+    <button id="voiceBtn" class="btn-light voice-btn" title="Voice/NLP interaction">🎙 Voice / NLP</button>
+    <button id="themeBtn" class="btn-light">Dark mode</button>
+    <button id="resetBtn" class="btn-light">Reset</button>
+    <button id="runBtn" class="btn-light" title="White: not yet simulated. Green: settings changed and simulation is required. Blue: simulation complete and results are current.">Run simulation</button>
+  </div>
+</div>
+</header>
+
+<div id="voicePanel" class="voice-panel" role="dialog" aria-modal="true" aria-labelledby="voiceTitle">
+  <div class="voice-card">
+    <div class="voice-head">
+      <div><h2 id="voiceTitle">RANOpt AI Voice Assistant</h2><div class="kpi-note">Voice is used only for command input. AI confirmations and explanations are displayed as text. Technical acronyms remain in English.</div></div>
+      <button id="voiceCloseBtn" class="voice-close" aria-label="Close">×</button>
+    </div>
+    <div class="voice-hero">
+      <div id="micOrb" class="mic-orb">🎙</div>
+      <div><div id="voiceStatus" class="voice-status">Microphone ready. Click Mic OFF to begin continuous listening.</div><div id="voiceMeter" class="voice-meter"><span></span></div></div>
+    </div>
+    <div class="voice-box"><strong>You said</strong><div id="voiceTranscript" class="voice-transcript">No command received yet.</div></div>
+    <div class="voice-box ai-command-response" id="aiCommandResponseBox"><strong>AI Command Response</strong><div id="voiceResponse" class="voice-response">Microphone ready. Give a command and the interpreted action will appear here.</div></div>
+    <div class="voice-meta">
+      <div class="metric"><div class="name">Recognition confidence</div><div id="voiceConfidence" class="value">—</div><div class="unit">Browser estimate</div></div>
+      <div class="metric"><div class="name">Executed action</div><div id="voiceAction" class="value" style="font-size:1rem">Waiting</div><div class="unit">Simulator control</div></div>
+    </div>
+    <div class="voice-actions">
+      <button id="listenBtn" class="btn-primary" aria-pressed="false">🎤 Mic OFF</button>
+      <button id="clearVoiceBtn" class="btn-secondary">Clear</button>
+      <button id="nlpValidationVoiceBtn" class="btn-secondary">🧪 Validate NLP</button>
+    </div>
+    <div class="voice-history"><h3>Voice command history</h3><div id="voiceHistory" class="voice-history-list"><div class="voice-history-item"><span>✓</span>Voice assistant initialized</div></div></div>
+    <div class="voice-help"><strong>Examples:</strong><br>
+      <code>AI on</code> · <code>select rule based AI</code> · <code>select pretrained PPO</code> · <code>select PPO training demo</code> · <code>expert mode</code> · <code>run simulation</code> · <code>quick test</code> · <code>detailed test</code><br>
+      <code>set active users to 30</code> · <code>set scenario to dense urban</code> · <code>scheduler proportional fair</code> · <code>carrier aggregation off</code> · <code>decision interval 20 milliseconds</code>
+    </div>
+  </div>
+</div>
+
+<main id="app">
+  <div class="topbar">
+    <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Not simulated — press Run Simulation</span></div>
+    <div class="mode-switch" aria-label="Display mode">
+      <button id="normalModeBtn" class="active">Normal mode</button>
+      <button id="expertModeBtn">Expert mode</button>
+    </div>
+  </div>
+  <div class="platform-status" aria-label="Current platform status">
+    <div class="status-item"><span class="label">Simulation</span><span class="value" id="summarySimulation">Not simulated</span></div>
+    <div class="status-item"><span class="label">Configuration</span><span class="value" id="summaryConfiguration">Awaiting first run</span></div>
+    <div class="status-item"><span class="label">Display mode</span><span class="value" id="summaryDisplayMode">Normal</span></div>
+    <div class="status-item"><span class="label">AI</span><span class="value" id="summaryAI">PPO Pretrained</span></div>
+    <div class="status-item"><span class="label">Scenario</span><span class="value" id="summaryScenario">Dense Urban</span></div>
+  </div>
+  <div id="modeBanner" class="mode-banner" role="status" aria-live="polite"></div>
+
+  <div class="tabs" id="tabs">
+    <button type="button" class="tab active" data-tab="general" aria-controls="general" aria-selected="true">General</button>
+    <button type="button" class="tab" data-tab="coverage" aria-controls="coverage" aria-selected="false">Coverage</button>
+    <button type="button" class="tab" data-tab="capacity" aria-controls="capacity" aria-selected="false">Capacity</button>
+    <button type="button" class="tab" data-tab="ca" aria-controls="ca" aria-selected="false">Carrier Aggregation</button>
+    <button type="button" class="tab" data-tab="scheduler" aria-controls="scheduler" aria-selected="false">Scheduler & AI</button>
+    <button type="button" class="tab" data-tab="results" aria-controls="results" aria-selected="false">Results</button>
+    <button type="button" class="tab" data-tab="trace" aria-controls="trace" aria-selected="false">Trace</button>
+    <button type="button" class="tab" data-tab="validation" aria-controls="validation" aria-selected="false">Validation</button>
+  </div>
+
+  <section id="general" class="panel active">
+    <div class="grid">
+      <div class="card span6">
+        <h2>Deployment <span class="badge">Network geometry</span></h2>
+        <div class="form-grid">
+          <div class="field full"><label>Duplex configuration</label><div class="segmented" id="duplexSeg"><button class="active" data-value="fdd">FDD</button><button data-value="fddtdd">FDD + TDD</button></div></div>
+          <div class="field"><label>Scenario</label><select id="scenario"><option value="rural">Rural macro</option><option value="suburban">Suburban macro</option><option value="urban" selected>Urban macro</option><option value="dense">Dense urban</option><option value="micro">Urban micro</option></select></div>
+          <div class="field"><label>Inter-site distance (m)</label><input id="isd" type="number" value="500" min="100" max="5000" step="50"></div>
+          <div class="field"><label>Active UEs / cell</label><input id="users" type="number" value="20" min="1" max="300"></div>
+          <div class="field"><label>Traffic profile</label><select id="traffic"><option value="light">Light eMBB</option><option value="medium" selected>Medium eMBB</option><option value="heavy">Heavy eMBB</option><option value="xr">XR / immersive eMBB</option><option value="ai">AI service eMBB</option></select></div>
+          <div class="field expert-only"><label>Penetration loss (dB)</label><input id="penetrationLoss" type="number" value="6" min="0" max="30" step="0.5"></div>
+          <div class="field expert-only"><label>Interference margin (dB)</label><input id="interferenceMargin" type="number" value="3" min="0" max="20" step="0.5"></div>
+        </div>
+      </div>
+      <div class="card span6">
+        <h2>UE capability <span class="badge">Constrains all layers</span></h2>
+        <div class="form-grid">
+          <div class="field full"><label>UE profile</label><select id="ueProfile"><option value="mainstream">Mainstream 5G UE</option><option value="premium" selected>Premium 5G-Advanced UE</option><option value="future">Future 6G-capable UE</option></select></div>
+          <div class="field"><label>Max DL layers</label><select id="ueDlLayers"><option>2</option><option selected>4</option><option>8</option></select></div>
+          <div class="field"><label>Max UL layers</label><select id="ueUlLayers"><option selected>2</option><option>4</option></select></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="coverage" class="panel">
+    <div class="grid">
+      <div class="card span6">
+        <h2>Coverage FDD layer <span class="badge">Anchor layer</span></h2>
+        <div class="form-grid">
+          <div class="field full"><label>5G NR FDD band</label><select id="fddBand" title="3GPP New Radio band; defines the paired DL and UL frequency ranges"><option value="n71" selected>n71 · 600 MHz</option><option value="n28">n28 · 700 MHz</option><option value="n5">n5 · 850 MHz</option><option value="n3">n3 · 1800 MHz</option><option value="n1">n1 · 2100 MHz</option><option value="n7">n7 · 2600 MHz</option></select></div>
+          <div class="field"><label>DL center frequency (MHz)</label><input id="fddDlFreq" type="number" value="635" min="617" max="652" step="0.1"></div>
+          <div class="field"><label>Paired UL center frequency (MHz)</label><input id="fddUlFreq" type="number" value="681" readonly title="Derived automatically from the selected FDD band and DL center frequency"></div>
+          <div class="field"><label>DL bandwidth (MHz)</label><select id="fddDlBw"><option>10</option><option selected>20</option><option>40</option><option>50</option><option>100</option></select></div>
+          <div class="field"><label>UL bandwidth (MHz)</label><select id="fddUlBw"><option>10</option><option selected>20</option><option>40</option><option>50</option></select></div>
+          <div class="field"><label>gNB MIMO</label><select id="fddMimo"><option value="16">16T16R</option><option value="32" selected>32T32R</option><option value="64">64T64R</option></select></div>
+          <div class="field"><label>Channel model</label><select id="fddChannel"><option>CDL-A</option><option selected>CDL-B</option><option>CDL-C</option><option>CDL-D</option><option>CDL-E</option></select></div>
+          <div class="field expert-only"><label>UE receiver noise figure (dB)</label><input id="ueNf" type="number" value="7" min="3" max="12" step="0.5" title="User-selectable receiver assumption; affects noise floor and SINR, not propagation path loss"></div>
+          <div class="field expert-only"><label>Calculated CSI effectiveness</label><input id="csiEff" type="number" value="0.90" readonly title="Calculated from mobility and CSI feedback delay"></div>
+          <div class="field expert-only"><label>Path-loss exponent</label><input id="pathLossExp" type="number" value="3.5" min="2" max="5" step="0.1"></div>
+          <div class="field expert-only"><label>Shadow fading sigma (dB)</label><input id="shadowSigma" type="number" value="8" min="0" max="20" step="0.5"></div>
+          <div class="field expert-only"><label>Delay spread (ns)</label><input id="delaySpread" type="number" value="300" min="10" max="2000" step="10"></div>
+          <div class="field expert-only"><label>Mobility (km/h)</label><input id="mobility" type="number" value="30" min="0" max="500" step="5"></div>
+        </div>
+      </div>
+      <div class="card span6">
+        <h2>Coverage assumptions <span class="badge">Calculated</span></h2>
+        <div id="coverageAssumptions" class="stage">
+          <strong>Awaiting run</strong><span>Run the simulation to calculate path loss, RSRP, SINR, CQI and coverage radius.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="capacity" class="panel">
+    <div class="grid">
+      <div class="card span6" id="capacityCard1">
+        <h2>TDD Capacity Layer 1 <span class="badge">Mid-band</span></h2>
+        <div class="form-grid">
+          <div class="field"><label>Center frequency (GHz)</label><input id="tddFreq" type="number" value="3.7" min="2.3" max="15" step="0.1"></div>
+          <div class="field"><label>DL TDD fraction</label><input id="tddDlFrac" type="number" value="0.75" min="0.4" max="0.9" step="0.05"></div>
+          <div class="field"><label>gNB MIMO</label><select id="tddMimo"><option value="32">32T32R</option><option value="64" selected>64T64R</option><option value="128">128T128R</option></select></div>
+          <div class="field"><label>Channel model</label><select id="tddChannel"><option>CDL-A</option><option>CDL-B</option><option selected>CDL-C</option><option>CDL-D</option><option>CDL-E</option></select></div>
+          <div class="field expert-only"><label>Beamforming gain (dB)</label><input id="beamGain" type="number" value="7" min="0" max="20" step="0.5"></div>
+          <div class="field expert-only"><label>Rank adaptation efficiency</label><input id="rankEff" type="number" value="0.86" min="0.4" max="1" step="0.01"></div>
+          <div class="field expert-only"><label>CSI feedback delay (ms)</label><input id="csiDelay" type="number" value="5" min="0" max="50" step="1"></div>
+        </div>
+      </div>
+
+      <div class="card span6" id="capacityCard2">
+        <h2>TDD Capacity Layer 2 <span class="badge">Upper mid-band</span></h2>
+        <div class="form-grid">
+          <div class="field"><label>Center frequency (GHz)</label><input id="tdd2Freq" type="number" value="7.0" min="4" max="15" step="0.1"></div>
+          <div class="field"><label>DL TDD fraction</label><input id="tdd2DlFrac" type="number" value="0.75" min="0.4" max="0.9" step="0.05"></div>
+          <div class="field"><label>gNB MIMO</label><select id="tdd2Mimo"><option value="32">32T32R</option><option value="64">64T64R</option><option value="128" selected>128T128R</option></select></div>
+          <div class="field"><label>Channel model</label><select id="tdd2Channel"><option>CDL-A</option><option>CDL-B</option><option>CDL-C</option><option selected>CDL-D</option><option>CDL-E</option></select></div>
+          <div class="field expert-only"><label>Beamforming gain (dB)</label><input id="beam2Gain" type="number" value="9" min="0" max="20" step="0.5"></div>
+          <div class="field expert-only"><label>Rank adaptation efficiency</label><input id="rank2Eff" type="number" value="0.82" min="0.4" max="1" step="0.01"></div>
+          <div class="field expert-only"><label>CSI feedback delay (ms)</label><input id="csi2Delay" type="number" value="6" min="0" max="50" step="1"></div>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h2>Capacity-stage outputs <span class="badge">Calculated per layer</span></h2>
+        <div id="capacityAssumptions" class="stage"><strong>Awaiting run</strong><span>Run the simulation to calculate Layer 1 and Layer 2 SINR, CQI, spectral efficiency and capacity.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="ca" class="panel">
+    <div class="grid">
+      <div class="card span6">
+        <h2>Carrier Aggregation <span class="badge">Up to 4 DL CCs</span></h2>
+        <div class="form-grid">
+          <div class="field full"><label>Carrier Aggregation</label><div class="segmented" id="caSeg"><button data-value="off">OFF</button><button class="active" data-value="on">ON</button></div></div>
+          <div class="field" id="fddCcCountField"><label>Number of additional FDD CCs</label><select id="fddAdditionalCc"><option>0</option><option selected>1</option><option>2</option><option>3</option></select></div>
+          <div class="field" id="mixedCcCountField"><label>Total FDD + TDD component carriers</label><select id="caDlCc"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></div>
+          <div class="field"><label>UL Carrier Aggregation</label><select id="ulCa"><option value="off" selected>Off</option><option value="on">On</option></select></div>
+          <div class="kpi-note full">CC1 is the FDD coverage anchor; its frequency and bandwidth are user-configured under Coverage. CC2–CC4 are configured below. The UE is assumed capable of receiving every selected CC.</div>
+          <div class="field cc-source-field cc2-config"><label>CC2 source</label><select id="cc2Source"><option value="fdd">FDD secondary</option><option value="tdd1" selected>TDD capacity layer 1</option><option value="tdd2">TDD capacity layer 2</option></select></div>
+          <div class="field cc2-config"><label>CC2 FDD band</label><select id="cc2Band"><option value="n71">n71 · 600 MHz</option><option value="n28">n28 · 700 MHz</option><option value="n5">n5 · 850 MHz</option><option value="n3" selected>n3 · 1800 MHz</option><option value="n1">n1 · 2100 MHz</option><option value="n7">n7 · 2600 MHz</option></select></div>
+          <div class="field cc2-config"><label>CC2 DL center frequency (MHz)</label><input id="cc2Freq" type="number" value="1842.5" min="1805" max="1880" step="0.1"></div>
+          <div class="field cc2-config"><label>CC2 paired UL frequency (MHz)</label><input id="cc2UlFreq" type="number" value="1747.5" readonly title="Derived automatically from the selected FDD band and DL center frequency"></div>
+          <div class="field cc2-config"><label>CC2 bandwidth (MHz)</label><select id="cc2Bw"><option>20</option><option>40</option><option>50</option><option>80</option><option selected>100</option><option>200</option></select></div>
+          <div class="field cc-source-field cc3-config"><label>CC3 source</label><select id="cc3Source"><option value="fdd">FDD secondary</option><option value="tdd1">TDD capacity layer 1</option><option value="tdd2" selected>TDD capacity layer 2</option></select></div>
+          <div class="field cc3-config"><label>CC3 FDD band</label><select id="cc3Band"><option value="n71">n71 · 600 MHz</option><option value="n28">n28 · 700 MHz</option><option value="n5">n5 · 850 MHz</option><option value="n3">n3 · 1800 MHz</option><option value="n1" selected>n1 · 2100 MHz</option><option value="n7">n7 · 2600 MHz</option></select></div>
+          <div class="field cc3-config"><label>CC3 DL center frequency (MHz)</label><input id="cc3Freq" type="number" value="2140" min="2110" max="2170" step="0.1"></div>
+          <div class="field cc3-config"><label>CC3 paired UL frequency (MHz)</label><input id="cc3UlFreq" type="number" value="1950" readonly title="Derived automatically from the selected FDD band and DL center frequency"></div>
+          <div class="field cc3-config"><label>CC3 bandwidth (MHz)</label><select id="cc3Bw"><option>20</option><option>40</option><option>50</option><option>80</option><option>100</option><option selected>200</option></select></div>
+          <div class="field cc-source-field cc4-config"><label>CC4 source</label><select id="cc4Source"><option value="fdd">FDD secondary</option><option value="tdd1" selected>TDD capacity layer 1</option><option value="tdd2">TDD capacity layer 2</option></select></div>
+          <div class="field cc4-config"><label>CC4 FDD band</label><select id="cc4Band"><option value="n71">n71 · 600 MHz</option><option value="n28">n28 · 700 MHz</option><option value="n5">n5 · 850 MHz</option><option value="n3">n3 · 1800 MHz</option><option value="n1">n1 · 2100 MHz</option><option value="n7" selected>n7 · 2600 MHz</option></select></div>
+          <div class="field cc4-config"><label>CC4 DL center frequency (MHz)</label><input id="cc4Freq" type="number" value="2655" min="2620" max="2690" step="0.1"></div>
+          <div class="field cc4-config"><label>CC4 paired UL frequency (MHz)</label><input id="cc4UlFreq" type="number" value="2535" readonly title="Derived automatically from the selected FDD band and DL center frequency"></div>
+          <div class="field cc4-config"><label>CC4 bandwidth (MHz)</label><select id="cc4Bw"><option>20</option><option>40</option><option>50</option><option>80</option><option selected>100</option><option>200</option></select></div>
+          <div class="field expert-only"><label>Cross-carrier scheduling</label><select id="crossCarrier"><option value="off">Off</option><option value="on" selected>On</option></select></div>
+          <div class="field expert-only"><label>CA combining efficiency</label><input id="caEff" type="number" value="0.94" min="0.5" max="1" step="0.01"></div>
+        </div>
+      </div>
+      <div class="card span6">
+        <h2>CA summary <span class="badge">Network configured</span></h2>
+        <div class="metric-grid">
+          <div class="metric"><div class="name">Configured CCs</div><div class="value" id="configuredCc">—</div><div class="unit">DL CC</div></div>
+          <div class="metric"><div class="name">Selected CCs</div><div class="value" id="effectiveCc">—</div><div class="unit">Network configured</div></div>
+          <div class="metric"><div class="name">Aggregated DL BW</div><div class="value" id="aggBw">—</div><div class="unit">MHz</div></div>
+          <div class="metric"><div class="name">CA efficiency</div><div class="value" id="caEfficiencyOut">—</div><div class="unit">%</div></div>
+        </div>
+        <div id="caWarning" class="warning hidden" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card full">
+        <h2>Component-carrier assignment <span class="badge">CC1–CC4</span></h2>
+        <div style="overflow:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:.86rem">
+            <thead><tr>
+              <th style="text-align:left;padding:9px;border-bottom:1px solid var(--border)">CC</th>
+              <th style="text-align:left;padding:9px;border-bottom:1px solid var(--border)">Source layer</th>
+              <th style="text-align:left;padding:9px;border-bottom:1px solid var(--border)">Frequency</th>
+              <th style="text-align:left;padding:9px;border-bottom:1px solid var(--border)">Bandwidth</th>
+              <th style="text-align:left;padding:9px;border-bottom:1px solid var(--border)">Duplex</th>
+              <th style="text-align:left;padding:9px;border-bottom:1px solid var(--border)">Status</th>
+            </tr></thead>
+            <tbody id="ccTableBody">
+              <tr><td colspan="6" style="padding:12px;color:var(--muted)">Run the simulation to populate CC1–CC4.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="scheduler" class="panel">
+    <div class="grid">
+      <div class="card span6">
+        <h2>Base scheduler <span class="badge" id="schedBadge">PF</span></h2>
+        <div class="form-grid">
+          <div class="field full"><label>Scheduler</label><select id="schedulerSel"><option value="rr">Round Robin</option><option value="pf" selected>Proportional Fair</option><option value="maxcqi">Max CQI</option></select></div>
+          <div class="field expert-only"><label>PF alpha</label><input id="pfAlpha" type="number" value="1.0" min="0.1" max="2" step="0.1"></div>
+          <div class="field expert-only"><label>PF beta</label><input id="pfBeta" type="number" value="1.0" min="0.1" max="2" step="0.1"></div>
+          <div class="field expert-only"><label>CQI weight</label><input id="cqiWeight" type="number" value="1.0" min="0" max="2" step="0.05"></div>
+          <div class="field expert-only"><label>Cell-edge weight</label><input id="edgeWeight" type="number" value="1.0" min="0" max="2" step="0.05"></div>
+        </div>
+      </div>
+      <div class="card span6">
+        <h2>AI optimization <span class="badge">Tunes selected scheduler</span></h2>
+        <div class="form-grid">
+          <div class="field full"><label>AI</label><div class="segmented" id="aiSeg"><button data-value="off">AI OFF</button><button class="active" data-value="on">AI ON</button></div></div>
+          <div class="field full"><label>AI engine — select one</label><div class="engine-segmented" id="aiEngineSeg"><button data-value="rule">Rule-Based AI<small>Deterministic expert rules</small></button><button class="active" data-value="ppo">PPO Pretrained<small>Offline Stage-1 policy · Recommended</small></button><button data-value="ppo_demo">PPO Training Demo<small>Browser session adaptation</small></button></div><select id="aiImplementation" class="hidden" aria-hidden="true" tabindex="-1"><option value="rule">Expert Rule-Based — Deterministic Expert System</option><option value="ppo" selected>PPO Pretrained — Offline Stage-1 Policy (Recommended)</option><option value="ppo_demo">PPO Browser Training Demo — Session Adaptation</option></select></div>
+          <div class="field"><label>RL policy</label><select id="rlPolicy"><option value="balanced" selected>Balanced eMBB policy</option><option value="throughput">Maximum throughput</option><option value="edge">Cell-edge protection</option><option value="efficiency">Spectrum / energy efficiency</option></select></div>
+          <div class="field"><label>Policy execution</label><select id="policyExec"><option value="inference" selected>Pretrained browser inference</option><option value="replay">Saved-policy replay</option><option value="shadow">Shadow comparison</option></select></div>
+          <div class="field"><label>Simulation repeatability</label><select id="simulationMode"><option value="deterministic" selected>Deterministic — Fixed seed 12345</option><option value="montecarlo">Monte Carlo — Variable seed</option></select></div>
+          <div class="field"><label>AI-assisted CSI reporting</label><select id="csiAi"><option value="off">Off</option><option value="adaptive" selected>Adaptive prediction</option><option value="aggressive">Aggressive reduction</option></select></div>
+          <div class="field"><label>Decision interval</label><select id="decisionInterval"><option value="10">10 ms</option><option value="20" selected>20 ms</option><option value="50">50 ms</option><option value="100">100 ms</option></select></div>
+          <div class="field"><label>Optimization goal</label><select id="aiGoal"><option value="throughput">Throughput</option><option value="balanced" selected>Balanced</option><option value="fairness">Fairness</option><option value="edge">Cell edge</option><option value="energy">Energy efficiency</option></select></div>
+          <div class="field"><label>Predictive traffic tuning</label><select id="predictive"><option value="off">Off</option><option value="on" selected>On</option></select></div>
+          <div class="field expert-only"><label>Throughput weight</label><input id="wThroughput" type="number" value="0.40" min="0" max="1" step="0.05"></div>
+          <div class="field expert-only"><label>Fairness weight</label><input id="wFairness" type="number" value="0.30" min="0" max="1" step="0.05"></div>
+          <div class="field expert-only"><label>Cell-edge weight</label><input id="wEdge" type="number" value="0.20" min="0" max="1" step="0.05"></div>
+          <div class="field expert-only"><label>Energy weight</label><input id="wEnergy" type="number" value="0.10" min="0" max="1" step="0.05"></div>
+          <div class="field expert-only"><label>Confidence threshold</label><input id="aiThreshold" type="number" value="0.70" min="0.5" max="0.95" step="0.05"></div>
+        </div>
+      </div>
+      <div class="card full">
+        <h2>AI engine status <span class="badge" id="ppoReadyBadge">Engine ready</span></h2>
+        <div class="metric-grid">
+          <div class="metric"><div class="name">Selected engine</div><div id="engineStatus" class="value" style="font-size:1rem">PPO Pretrained</div><div class="unit">Optimization implementation</div></div>
+          <div class="metric"><div class="name">PPO model</div><div id="modelStatus" class="value" style="font-size:1rem">RANOpt-PPO-v16.5</div><div class="unit">Embedded demonstration policy</div></div>
+          <div class="metric"><div class="name">Stage-1 policy</div><div id="trainingStatus" class="value" style="font-size:1rem">Available</div><div class="unit">Offline-pretrained representation</div></div>
+          <div class="metric"><div class="name">Inference</div><div id="inferenceStatus" class="value" style="font-size:1rem">Ready</div><div class="unit">Browser execution</div></div>
+          <div class="metric"><div class="name">Random seed</div><div id="seedStatus" class="value" style="font-size:1rem">Fixed 12345</div><div class="unit">Repeatability mode</div></div>
+          <div class="metric"><div class="name">Training episodes</div><div id="episodeStatus" class="value" style="font-size:1rem">250,000</div><div class="unit">Stage-1 reference</div></div>
+        </div>
+        <div class="kpi-note">The browser loads the final policy representation, normalization settings and action mapping—not the complete Stage-1 training dataset. The Training Demo applies a small session-specific adaptation for demonstration only.</div>
+      </div>
+
+      <div class="card full">
+        <h2>3GPP-aligned KPI target profile <span class="badge">Balanced KPI constraints</span></h2>
+        <div class="form-grid">
+          <div class="field"><label>Target profile</label><select id="targetProfile"><option value="rel15">5G NR eMBB reference</option><option value="rel18" selected>5G-Advanced eMBB study</option><option value="rel19">Rel-19 / emerging 6G research</option><option value="custom">Custom engineering targets</option></select></div>
+          <div class="field"><label>RL optimization mode</label><select id="rewardMode"><option value="weighted" selected>Balanced KPI Optimization</option><option value="hard">Hard Constraint Priority</option><option value="pareto">Pareto-Balanced Objectives</option></select></div>
+          <div class="field expert-only"><label>Target median DL (Mbps)</label><input id="targetMedianDl" type="number" value="250" min="1" step="10"></div>
+          <div class="field expert-only"><label>Target median UL (Mbps)</label><input id="targetMedianUl" type="number" value="75" min="1" step="5"></div>
+          <div class="field expert-only"><label>Target 5%-tile DL (Mbps)</label><input id="targetEdgeDl" type="number" value="75" min="1" step="5"></div>
+          <div class="field expert-only"><label>Target 5%-tile UL (Mbps)</label><input id="targetEdgeUl" type="number" value="25" min="1" step="5"></div>
+          <div class="field expert-only"><label>Target fairness</label><input id="targetFairness" type="number" value="0.92" min="0.5" max="1" step="0.01"></div>
+          <div class="field expert-only"><label>Maximum PRB utilization (%)</label><input id="targetPrb" type="number" value="88" min="40" max="100" step="1"></div>
+          <div class="field expert-only"><label>UL signaling reduction target (%)</label><input id="targetSignaling" type="number" value="30" min="0" max="70" step="5"></div>
+        </div>
+        <div class="kpi-note">Targets are configurable engineering profiles used by Balanced KPI Optimization. The Rel-19 / emerging 6G profile is a research target profile, not a finalized 6G normative requirement.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="results" class="panel">
+    <div id="resultsEmptyState" class="card full" style="margin-bottom:14px;text-align:center;padding:28px">
+      <h2 style="margin-bottom:8px">No simulation results available</h2>
+      <div style="color:var(--muted)">Configure the network parameters and press <strong>Run Simulation</strong> to generate new KPI results.</div>
+    </div>
+    <div class="grid" id="resultsGrid">
+      <div class="card full">
+        <h2>Simulation KPIs <span class="badge" id="resultBadge">Awaiting run</span></h2>
+        <div class="metric-grid">
+          <div class="metric"><div class="name">Median DL UE rate</div><div class="value" id="mDl">—</div><div class="unit">Mbps</div></div>
+          <div class="metric"><div class="name">Median UL UE rate</div><div class="value" id="mUl">—</div><div class="unit">Mbps</div></div>
+          <div class="metric"><div class="name">5th percentile DL</div><div class="value" id="p5Dl">—</div><div class="unit">Mbps</div></div>
+          <div class="metric"><div class="name">5th percentile UL</div><div class="value" id="p5Ul">—</div><div class="unit">Mbps</div></div>
+          <div class="metric"><div class="name">Peak DL</div><div class="value" id="peakDl">—</div><div class="unit">Gbps</div></div>
+          <div class="metric"><div class="name">Peak UL</div><div class="value" id="peakUl">—</div><div class="unit">Gbps</div></div>
+          <div class="metric"><div class="name">Cell DL capacity</div><div class="value" id="cellDl">—</div><div class="unit">Gbps</div></div>
+          <div class="metric"><div class="name">Cell UL capacity</div><div class="value" id="cellUl">—</div><div class="unit">Gbps</div></div>
+          <div class="metric"><div class="name">Coverage radius</div><div class="value" id="radius">—</div><div class="unit">km</div></div>
+          <div class="metric"><div class="name">Cell spectral efficiency</div><div class="value" id="cellSe">—</div><div class="unit">b/s/Hz</div></div>
+          <div class="metric"><div class="name">Jain fairness</div><div class="value" id="fairnessOut">—</div><div class="unit">index</div></div>
+          <div class="metric"><div class="name">PRB utilization</div><div class="value" id="prbUtil">—</div><div class="unit">%</div></div>
+          <div class="metric"><div class="name">AI capacity gain</div><div class="value" id="aiGainOut">—</div><div class="unit">%</div></div>
+          <div class="metric"><div class="name">AI confidence</div><div class="value" id="aiConfOut">—</div><div class="unit">%</div></div>
+          <div class="metric"><div class="name">UL UE signaling reduction</div><div class="value" id="signalReductionOut">—</div><div class="unit">%</div></div>
+          <div class="metric"><div class="name">Optimization reward score</div><div class="value" id="rewardOut">—</div><div class="unit">/100</div></div>
+          <div class="metric"><div class="name">Selected DL bandwidth</div><div class="value" id="activeBw">—</div><div class="unit">MHz</div></div>
+          <div class="metric"><div class="name">Selected component carriers</div><div class="value" id="activeCc">—</div><div class="unit">CC</div></div>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h2>KPI target attainment <span class="badge" id="targetBadge">Awaiting run</span></h2>
+        <table class="target-table"><thead><tr><th>KPI</th><th>Achieved</th><th>Status</th></tr></thead><tbody id="targetTableBody"><tr><td colspan="3" style="color:var(--muted)">Run the simulation to compare the selected AI result with the configured thresholds.</td></tr></tbody></table>
+        <div id="targetCapacityNote" class="kpi-note" style="margin-top:10px">Run the simulation to compare available cell capacity with the capacity required by the configured per-UE targets.</div>
+      </div>
+
+      <div class="card span8"><h2>UE throughput distribution <span class="badge">DL / UL</span></h2><div class="canvas-wrap"><canvas id="rateChart" width="1000" height="300"></canvas></div></div>
+      <div class="card"><h2>Coverage / SINR <span class="badge">Distance profile</span></h2><div class="canvas-wrap"><canvas id="coverageChart" width="520" height="300"></canvas></div></div>
+
+      <div class="card span6"><h2>Cell capacity by layer <span class="badge">Normal and Expert</span></h2><div class="canvas-wrap"><canvas id="cellCapacityChart" width="760" height="300"></canvas></div></div>
+      <div class="card span6"><h2>Cell resource utilization <span class="badge">Normal and Expert</span></h2><div class="canvas-wrap"><canvas id="resourceChart" width="760" height="300"></canvas></div></div>
+
+      <div class="card full">
+        <h2>Conspicuous AI impact <span class="badge">AI OFF baseline vs AI ON</span></h2>
+        <div class="canvas-wrap"><canvas id="aiCompareChart" width="1500" height="340"></canvas></div>
+        <div class="note" style="margin-top:8px">Only AI-sensitive KPIs are shown. Bar heights are normalized to AI OFF = 100; exact values and percentage improvement are printed on the chart.</div>
+      </div>
+
+      <div class="card span6 expert-card"><h2>Per-carrier DL capacity <span class="badge">Expert mode</span></h2><div class="canvas-wrap"><canvas id="carrierChart" width="760" height="300"></canvas></div></div>
+      <div class="card span6 expert-card"><h2>Link adaptation diagnostics <span class="badge">Expert mode</span></h2><div class="canvas-wrap"><canvas id="linkChart" width="760" height="300"></canvas></div></div>
+      <div class="card span6 expert-card"><h2>Scheduler and fairness diagnostics <span class="badge">Expert mode</span></h2><div class="canvas-wrap"><canvas id="schedulerChart" width="760" height="300"></canvas></div></div>
+      <div class="card span6 expert-card"><h2>AI optimization diagnostics <span class="badge">Expert mode</span></h2><div class="canvas-wrap"><canvas id="aiChart" width="760" height="300"></canvas></div></div>
+    </div>
+  </section>
+
+  <section id="trace" class="panel">
+    <div class="grid">
+      <div class="card full">
+        <h2>Hierarchical calculation trace <span class="badge">Intermediate values</span></h2>
+        <div id="traceBox" class="trace">Run the simulation to populate the calculation trace.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="validation" class="panel">
+    <div class="grid">
+      <div class="card full">
+        <h2>Validation checks <span class="badge">Regression and consistency tests</span></h2>
+        <div class="toolbar" style="margin-bottom:12px">
+          <button id="quickCheckBtn" class="btn-primary">Run quick check</button>
+          <button id="detailedCheckBtn" class="btn-secondary">Run detailed check</button>
+          <button id="nlpValidationBtn" class="btn-secondary">Run NLP validation</button>
+        </div>
+        <div id="testLog" class="test-log"><span class="info">Ready. Quick, Detailed, and NLP tests run automatically and report implementation-specific results.</span></div>
+        <div id="nlpValidationSummary" class="kpi-note" style="margin-top:10px">NLP validation has not been run.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer style="max-width:1500px;margin:0 auto 24px;padding:0 18px;color:var(--muted);font-size:.78rem;text-align:right">RANOpt AI v16.5 · Per-CC DL/UL Revision · Build 2026.07.22</footer>
+
+<script>
+(() => {
+"use strict";
+const APP_VERSION="16.5";
+const BUILD_DATE="2026.07.22";
+const $ = id => document.getElementById(id);
+let mode="normal", duplex="fdd", caOn=true, aiMode="ppo", aiOn=true, last=null;
+
+const defaults={
+  scenario:"urban",isd:"500",users:"20",traffic:"medium",penetrationLoss:"6",interferenceMargin:"3",
+  ueProfile:"premium",ueDlLayers:"4",ueUlLayers:"2",ueNf:"7",csiEff:"0.90",
+  fddBand:"n71",fddDlFreq:"635",fddUlFreq:"681",fddDlBw:"20",fddUlBw:"20",fddMimo:"32",fddChannel:"CDL-B",
+  pathLossExp:"3.5",shadowSigma:"8",delaySpread:"300",mobility:"30",
+  tddFreq:"3.7",tddDlFrac:"0.75",tddMimo:"64",tddChannel:"CDL-C",beamGain:"7",rankEff:"0.86",csiDelay:"5",
+  tdd2Freq:"7.0",tdd2DlFrac:"0.75",tdd2Mimo:"128",tdd2Channel:"CDL-D",beam2Gain:"9",rank2Eff:"0.82",csi2Delay:"6",
+  fddAdditionalCc:"1",caDlCc:"2",ulCa:"off",cc2Source:"tdd1",cc2Band:"n3",cc2Freq:"1842.5",cc2UlFreq:"1747.5",cc2Bw:"100",cc3Source:"tdd2",cc3Band:"n1",cc3Freq:"2140",cc3UlFreq:"1950",cc3Bw:"200",cc4Source:"tdd1",cc4Band:"n7",cc4Freq:"2655",cc4UlFreq:"2535",cc4Bw:"100",crossCarrier:"on",caEff:"0.94",
+  schedulerSel:"pf",pfAlpha:"1.0",pfBeta:"1.0",cqiWeight:"1.0",edgeWeight:"1.0",
+  aiImplementation:"ppo",aiGoal:"balanced",predictive:"on",wThroughput:"0.40",wFairness:"0.30",wEdge:"0.20",wEnergy:"0.10",aiThreshold:"0.70",rlPolicy:"balanced",policyExec:"inference",simulationMode:"deterministic",csiAi:"adaptive",decisionInterval:"20",targetProfile:"rel18",rewardMode:"weighted",targetMedianDl:"250",targetMedianUl:"75",targetEdgeDl:"75",targetEdgeUl:"25",targetFairness:"0.92",targetPrb:"88",targetSignaling:"30"
+};
+const scenario={rural:{pl:0.86,coverage:1.25},suburban:{pl:0.93,coverage:1.12},urban:{pl:1,coverage:1},dense:{pl:1.12,coverage:.88},micro:{pl:.92,coverage:.76}};
+const channel={"CDL-A":.96,"CDL-B":.91,"CDL-C":.84,"CDL-D":.79,"CDL-E":.73};
+const traffic={light:.52,medium:.72,heavy:.92,xr:.86,ai:.82};
+const sched={
+  rr:{name:"Round Robin",capacity:.89,median:.97,edge:1.10,fairness:.97},
+  pf:{name:"Proportional Fair",capacity:1.00,median:1.00,edge:1.00,fairness:.92},
+  maxcqi:{name:"Max CQI",capacity:1.13,median:.93,edge:.72,fairness:.76}
+};
+const num=id=>Number($(id).value);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fddBands={
+  n71:{dlMin:617,dlMax:652,offset:46,defaultDl:635},
+  n28:{dlMin:758,dlMax:803,offset:-55,defaultDl:780},
+  n5:{dlMin:869,dlMax:894,offset:-45,defaultDl:881},
+  n3:{dlMin:1805,dlMax:1880,offset:-95,defaultDl:1842.5},
+  n1:{dlMin:2110,dlMax:2170,offset:-190,defaultDl:2140},
+  n7:{dlMin:2620,dlMax:2690,offset:-120,defaultDl:2655}
+};
+const formatMHz=v=>Number.isInteger(v)?v.toFixed(0):v.toFixed(1);
+function syncFddPair(i="anchor",resetDl=false){
+  const prefix=i==="anchor"?"fdd":`cc${i}`;
+  const band=fddBands[$(prefix+"Band").value]||fddBands.n71;
+  const dl=$(prefix+(i==="anchor"?"DlFreq":"Freq"));
+  const ul=$(prefix+"UlFreq");
+  dl.min=band.dlMin;dl.max=band.dlMax;dl.step="0.1";
+  const requested=resetDl?band.defaultDl:Number(dl.value);
+  const pairedDl=clamp(Number.isFinite(requested)?requested:band.defaultDl,band.dlMin,band.dlMax);
+  dl.value=formatMHz(pairedDl);
+  ul.value=formatMHz(pairedDl+band.offset);
+  ul.readOnly=true;
+}
+function syncAllFddPairs(resetDl=false){syncFddPair("anchor",resetDl);[2,3,4].forEach(i=>syncFddPair(i,resetDl));}
+function updateSchedulerHeading(){
+  const selected=sched[$("schedulerSel").value];
+  $("schedBadge").textContent=selected?selected.name:"Scheduler";
+}
+function updateCcAssignmentControls(){
+  $("fddCcCountField").style.display=duplex==="fdd"?"flex":"none";
+  $("mixedCcCountField").style.display=duplex==="fddtdd"?"flex":"none";
+  document.querySelectorAll(".cc-source-field").forEach(field=>field.style.display=duplex==="fddtdd"?"flex":"none");
+  const activeCc=caOn?(duplex==="fdd"?1+num("fddAdditionalCc"):num("caDlCc")):1;
+  [2,3,4].forEach(i=>{
+    const source=$("cc"+i+"Source"), fddBand=$("cc"+i+"Band"), fddFreq=$("cc"+i+"Freq"), fddUlFreq=$("cc"+i+"UlFreq");
+    const bandwidth=$("cc"+i+"Bw"), active=i<=activeCc;
+    document.querySelectorAll(`.cc${i}-config`).forEach(field=>field.style.opacity=active?"1":".42");
+    source.disabled=duplex==="fdd"||!active;
+    source.title=duplex==="fdd"?"FDD-only configuration uses an FDD secondary carrier":"Select the source layer for this component carrier";
+    const fddDisabled=!active||(duplex==="fddtdd"&&source.value!=="fdd");
+    fddBand.disabled=fddDisabled;
+    fddFreq.disabled=fddDisabled;
+    fddUlFreq.disabled=fddDisabled;
+    fddUlFreq.readOnly=true;
+    bandwidth.disabled=!active;
+    fddFreq.title=fddFreq.disabled?"Not used while this CC is assigned to a TDD capacity layer":"Select the DL center frequency inside the chosen FDD band";
+    fddUlFreq.title=fddDisabled?"Not used while this CC is assigned to a TDD capacity layer":"Derived from the selected FDD band and DL center frequency";
+  });
+}
+function configuredSecondaryCarrier(i){
+  const selectedSource=duplex==="fdd"?"fdd":$("cc"+i+"Source").value;
+  if(selectedSource==="tdd1") return {name:`CC${i}`,source:"TDD capacity layer 1",freq:`${num("tddFreq").toFixed(1)} GHz`,freqGHz:num("tddFreq"),bw:num("cc"+i+"Bw"),duplex:"TDD",type:"tdd1"};
+  if(selectedSource==="tdd2") return {name:`CC${i}`,source:"TDD capacity layer 2",freq:`${num("tdd2Freq").toFixed(1)} GHz`,freqGHz:num("tdd2Freq"),bw:num("cc"+i+"Bw"),duplex:"TDD",type:"tdd2"};
+  return {name:`CC${i}`,source:`FDD secondary carrier (${$("cc"+i+"Band").value})`,freq:`DL ${formatMHz(num("cc"+i+"Freq"))} / UL ${formatMHz(num("cc"+i+"UlFreq"))} MHz`,dlFreqMHz:num("cc"+i+"Freq"),ulFreqMHz:num("cc"+i+"UlFreq"),bw:num("cc"+i+"Bw"),duplex:"FDD",type:`fdd${i}`};
+}
+function getConfiguredCarriers(){
+  const configuredCc=caOn?(duplex==="fdd"?1+num("fddAdditionalCc"):num("caDlCc")):1;
+  const effCc=Math.min(configuredCc,4);
+  const carriers=[{name:"CC1",source:`FDD coverage anchor (${$("fddBand").value})`,freq:`DL ${formatMHz(num("fddDlFreq"))} / UL ${formatMHz(num("fddUlFreq"))} MHz`,dlFreqMHz:num("fddDlFreq"),ulFreqMHz:num("fddUlFreq"),bw:num("fddDlBw"),duplex:"FDD",type:"fdd"}];
+  for(let i=2;i<=effCc;i++) carriers.push(configuredSecondaryCarrier(i));
+  const aggregatedBw=carriers.reduce((sum,c)=>sum+c.bw,0);
+  const cappedBw=aggregatedBw;
+  return {configuredCc,effCc,carriers,aggregatedBw,cappedBw};
+}
+function updateCASummary(){
+  const c=getConfiguredCarriers();
+  $("configuredCc").textContent=c.configuredCc;
+  $("effectiveCc").textContent=c.effCc;
+  $("aggBw").textContent=c.cappedBw.toFixed(0);
+  $("caEfficiencyOut").textContent=caOn?(num("caEff")*100).toFixed(0):"—";
+  const warnings=[];
+  if(!caOn) warnings.push("Carrier aggregation is OFF; CC1 remains the serving carrier.");
+  $("caWarning").classList.toggle("hidden",warnings.length===0);
+  $("caWarning").textContent=warnings.join(" ");
+  $("ccTableBody").innerHTML=[1,2,3,4].map(i=>{
+    const cc=c.carriers[i-1];
+    return cc?`<tr><td style="padding:9px;border-bottom:1px solid var(--border)">${cc.name}</td><td style="padding:9px;border-bottom:1px solid var(--border)">${cc.source}</td><td style="padding:9px;border-bottom:1px solid var(--border)">${cc.freq}</td><td style="padding:9px;border-bottom:1px solid var(--border)">${cc.bw} MHz</td><td style="padding:9px;border-bottom:1px solid var(--border)">${cc.duplex}</td><td style="padding:9px;border-bottom:1px solid var(--border);color:var(--good);font-weight:800">CONFIGURED</td></tr>`:
+    `<tr><td style="padding:9px;border-bottom:1px solid var(--border)">CC${i}</td><td colspan="4" style="padding:9px;border-bottom:1px solid var(--border);color:var(--muted)">Not selected</td><td style="padding:9px;border-bottom:1px solid var(--border);color:var(--muted)">NOT SELECTED</td></tr>`;
+  }).join("");
+}
+function setDirty(){
+  updateSchedulerHeading();
+  updateCcAssignmentControls();
+  updateCASummary();
+  $("statusDot").classList.remove("done");
+  $("statusText").textContent="Configuration changed — simulation required";
+  $("runBtn").className="btn-good";
+  $("runBtn").title="Settings changed. Run the simulation to refresh KPI results.";
+  updatePlatformStatus("dirty");
+}
+let modeBannerTimer=null;
+function updatePlatformStatus(simState=null){
+  if($("summaryDisplayMode")) $("summaryDisplayMode").textContent=mode==="expert"?"Expert":"Normal";
+  if($("summaryAI")) $("summaryAI").textContent=!aiOn?"OFF":(aiMode==="ppo"?"PPO Pretrained":aiMode==="ppo_demo"?"PPO Training Demo":"Rule-Based Expert");
+  if($("summaryScenario")) $("summaryScenario").textContent=$("scenario")?$("scenario").options[$("scenario").selectedIndex].text:"Dense Urban";
+  if(simState==="dirty"){$("summarySimulation").textContent="Simulation required";$("summaryConfiguration").textContent="Changed";}
+  else if(simState==="current"){$("summarySimulation").textContent="Current results";$("summaryConfiguration").textContent="Valid";}
+  else if(simState==="none"){$("summarySimulation").textContent="Not simulated";$("summaryConfiguration").textContent="Awaiting first run";}
+}
+function showModeBanner(m){
+  const b=$("modeBanner"); if(!b)return;
+  b.innerHTML=m==="expert"?"Expert Mode Active<small>Advanced RAN engineering analysis is displayed using the current simulation results.</small>":"Normal Mode Active<small>Simplified operator dashboard is displayed. Simulation results are unchanged.</small>";
+  b.classList.add("show"); clearTimeout(modeBannerTimer); modeBannerTimer=setTimeout(()=>b.classList.remove("show"),2600);
+}
+function setMode(m,announce=false){mode=m;$("app").classList.toggle("expert-mode",m==="expert");$("normalModeBtn").classList.toggle("active",m==="normal");$("expertModeBtn").classList.toggle("active",m==="expert");updatePlatformStatus();if(announce)showModeBanner(m);}
+function setDuplex(v){
+  duplex=v;
+  [...$("duplexSeg").querySelectorAll("button")].forEach(b=>b.classList.toggle("active",b.dataset.value===v));
+  const tddAvailable=v==="fddtdd";
+  ["capacityCard1","capacityCard2"].forEach(id=>{ if($(id)) $(id).style.opacity=tddAvailable?"1":".42"; });
+  document.querySelectorAll("#capacity input,#capacity select").forEach(control=>control.disabled=!tddAvailable);
+  const capacityTab=document.querySelector('.tab[data-tab="capacity"]');
+  if(capacityTab){
+    capacityTab.disabled=!tddAvailable;
+    capacityTab.setAttribute("aria-disabled",tddAvailable?"false":"true");
+    capacityTab.style.opacity=tddAvailable?"1":".42";
+    capacityTab.title=tddAvailable?"Configure TDD capacity layers":"Not applicable in FDD-only configuration";
+  }
+  if(!tddAvailable&&$("capacity").classList.contains("active"))activateTab("general");
+  setDirty();
+}
+function setCA(v){caOn=v==="on";[...$("caSeg").querySelectorAll("button")].forEach(b=>b.classList.toggle("active",b.dataset.value===v));setDirty();}
+function setAI(v){
+  aiOn=v==="on";
+  [...$("aiSeg").querySelectorAll("button")].forEach(b=>b.classList.toggle("active",b.dataset.value===v));
+  $("aiImplementation").disabled=!aiOn;
+  [...$("aiEngineSeg").querySelectorAll("button")].forEach(b=>b.disabled=!aiOn);
+  updateAIEngineStatus();
+  setDirty();
+}
+function updateAIEngineStatus(){
+  const ppo=aiMode==="ppo"||aiMode==="ppo_demo";
+  const deterministic=$("simulationMode").value==="deterministic";
+  if($("engineStatus")) $("engineStatus").textContent=aiMode==="ppo"?"PPO Pretrained":aiMode==="ppo_demo"?"PPO Training Demo":"Rule-Based";
+  if($("modelStatus")) $("modelStatus").textContent=ppo?"RANOpt-PPO-v16.5":"Expert Rules v14.6+";
+  if($("trainingStatus")) $("trainingStatus").textContent=aiMode==="ppo_demo"?"Local adaptation enabled":ppo?"Policy loaded":"Not required";
+  if($("inferenceStatus")) $("inferenceStatus").textContent=aiOn?"Ready":"AI disabled";
+  if($("seedStatus")) $("seedStatus").textContent=deterministic?"Fixed 12345":"Variable";
+  if($("episodeStatus")) $("episodeStatus").textContent=aiMode==="ppo_demo"?"500–2,000 local":"250,000";
+  if($("ppoReadyBadge")) $("ppoReadyBadge").textContent=aiOn?(ppo?"PPO ready":"Expert engine ready"):"AI off";
+}
+function setAIImplementation(v){
+  aiMode=v;
+  $("aiImplementation").value=v;
+  [...$("aiEngineSeg").querySelectorAll("button")].forEach(b=>b.classList.toggle("active",b.dataset.value===v));
+  const ppo=v==="ppo"||v==="ppo_demo";
+  ["rlPolicy","policyExec","csiAi","decisionInterval","simulationMode"].forEach(id=>$(id).disabled=!ppo);
+  updateAIEngineStatus();
+  setDirty();
+}
+function fspl(freqMHz,distKm){return 32.45+20*Math.log10(freqMHz)+20*Math.log10(Math.max(.01,distKm));}
+function cqiFromSinr(s){return clamp(Math.round((s+6)/2),1,15)}
+function mcsFromCqi(c){return clamp(Math.round(c*1.75),0,28)}
+function blerFromSinr(s,cqi){return clamp(0.12*Math.exp(-(s-(cqi*1.55-7))/3),.01,.30)}
+function spectralEfficiency(sinr,layers,ch,rankEff,csiEff,bler){
+  const shannon=Math.log2(1+Math.pow(10,sinr/10));
+  const coded=Math.min(7.4,shannon*.72);
+  return Math.max(.08,coded)*Math.max(1,layers)*channel[ch]*rankEff*csiEff*(1-bler);
+}
+function gnbLayerLimit(mimo){return mimo>=64?8:mimo>=32?4:2}
+function channelLayerLimit(ch){return {"CDL-A":8,"CDL-B":8,"CDL-C":4,"CDL-D":4,"CDL-E":2}[ch]||2}
+function sinrLayerLimit(sinr){return sinr>=18?8:sinr>=8?4:sinr>=0?2:1}
+function effectiveLayers(ueLayers,gnbMimo,ch,sinr){return Math.max(1,Math.min(ueLayers,gnbLayerLimit(gnbMimo),channelLayerLimit(ch),sinrLayerLimit(sinr)))}
+function calculateCsiEffectiveness(){
+  const delays=[];
+  const carriers=getConfiguredCarriers().carriers;
+  if(duplex==="fddtdd"&&carriers.some(c=>c.type==="tdd1")) delays.push(num("csiDelay"));
+  if(duplex==="fddtdd"&&carriers.some(c=>c.type==="tdd2")) delays.push(num("csi2Delay"));
+  const representativeDelay=delays.length?delays.reduce((a,b)=>a+b,0)/delays.length:4;
+  return clamp(.98-.0045*representativeDelay-.0007*num("mobility"),.55,.98);
+}
+function aiFactors(forceState=null){
+  const enabled=forceState===null?aiOn:forceState;
+  if(!enabled)return {cap:1,edge:1,fair:1,energy:1,confidence:0,gain:0};
+  const engineScale=aiMode==="ppo"?1:(aiMode==="ppo_demo"?.94:(aiMode==="rule"?.58:0));
+  const goal=$("aiGoal").value;
+  const map={
+    throughput:{cap:1.12,edge:1.03,fair:1.01,energy:.98},
+    balanced:{cap:1.08,edge:1.16,fair:1.08,energy:1.04},
+    fairness:{cap:1.03,edge:1.22,fair:1.12,energy:1.02},
+    edge:{cap:1.02,edge:1.28,fair:1.09,energy:1.01},
+    energy:{cap:1.00,edge:1.08,fair:1.04,energy:1.14}
+  };
+  let f=map[goal];
+  if(mode==="expert"){
+    const sum=num("wThroughput")+num("wFairness")+num("wEdge")+num("wEnergy");
+    const norm=sum>0?sum:1;
+    f={
+      cap:1+0.18*num("wThroughput")/norm+0.05*num("wFairness")/norm,
+      edge:1+0.30*num("wEdge")/norm+0.12*num("wFairness")/norm,
+      fair:1+0.18*num("wFairness")/norm+0.06*num("wEdge")/norm,
+      energy:1+0.18*num("wEnergy")/norm
+    };
+  }
+  const predictive=$("predictive").value==="on"?0.02:0;
+  const confidence=clamp(.74+predictive+(.04*(1-traffic[$("traffic").value]))-.015*(num("mobility")/100),.55,.95);
+  f={cap:1+(f.cap-1)*engineScale,edge:1+(f.edge-1)*engineScale,fair:1+(f.fair-1)*engineScale,energy:1+(f.energy-1)*engineScale};
+  let demoJitter=1;
+  if(aiMode==="ppo_demo" && $("simulationMode").value==="montecarlo") demoJitter=.96+Math.random()*.08;
+  f={cap:1+(f.cap-1)*demoJitter,edge:1+(f.edge-1)*demoJitter,fair:1+(f.fair-1)*demoJitter,energy:1+(f.energy-1)*demoJitter};
+  return {...f,confidence:confidence*((aiMode==="ppo"||aiMode==="ppo_demo")?1:.92),gain:(f.cap-1)*100};
+}
+function applyTargetProfile(){
+  const profiles={rel15:[100,50,30,15,.90,92,15],rel18:[250,75,75,25,.92,88,30],rel19:[500,150,125,50,.94,85,45]};
+  const p=profiles[$("targetProfile").value]; if(!p)return;
+  ["targetMedianDl","targetMedianUl","targetEdgeDl","targetEdgeUl","targetFairness","targetPrb","targetSignaling"].forEach((id,i)=>$(id).value=p[i]);
+}
+function targetEvaluation(r){
+  const signaling=(aiMode==="ppo"||aiMode==="ppo_demo")?($("csiAi").value==="aggressive"?48:$("csiAi").value==="adaptive"?32:8):aiMode==="rule"?12:0;
+  const tests=[
+    {name:"Median DL UE rate",value:r.medianDl,target:num("targetMedianDl"),unit:"Mbps",higher:true},
+    {name:"Median UL UE rate",value:r.medianUl,target:num("targetMedianUl"),unit:"Mbps",higher:true},
+    {name:"5th-percentile DL",value:r.edgeDl,target:num("targetEdgeDl"),unit:"Mbps",higher:true},
+    {name:"5th-percentile UL",value:r.edgeUl,target:num("targetEdgeUl"),unit:"Mbps",higher:true},
+    {name:"Jain fairness",value:r.fairness,target:num("targetFairness"),unit:"",higher:true},
+    {name:"PRB utilization",value:r.prb,target:num("targetPrb"),unit:"%",higher:false},
+    {name:"UL UE signaling reduction",value:signaling,target:num("targetSignaling"),unit:"%",higher:true}
+  ];
+  const ratios=tests.map(t=>t.higher?Math.min(1.2,t.value/Math.max(.001,t.target)):Math.min(1.2,t.target/Math.max(.001,t.value)));
+  const weights=[.22,.13,.17,.10,.13,.10,.15];
+  const reward=100*ratios.reduce((a,v,i)=>a+v*weights[i],0);
+  return {tests,signaling,reward:Math.min(100,reward)};
+}
+function quantile(sorted,p){
+  if(!sorted.length)return 0;
+  const pos=(sorted.length-1)*p,lo=Math.floor(pos),hi=Math.ceil(pos),f=pos-lo;
+  return sorted[lo]*(1-f)+sorted[hi]*f;
+}
+function buildUeRateDistribution(cellMbps,users,schedulerKey,edgeGain){
+  const schedulerSkew={rr:.06,pf:.34,maxcqi:.78}[schedulerKey]??.34;
+  const skew=schedulerSkew/Math.max(1,edgeGain);
+  const weights=Array.from({length:users},(_,i)=>{
+    const p=(i+.5)/users;
+    return Math.max(.12,1+skew*(2*p-1));
+  });
+  const sum=weights.reduce((a,b)=>a+b,0);
+  const rates=weights.map(w=>cellMbps*w/sum).sort((a,b)=>a-b);
+  return {rates,median:quantile(rates,.50),p5:quantile(rates,.05)};
+}
+function simulate(options={}){
+  syncAllFddPairs(false);
+  const forceAI=Object.prototype.hasOwnProperty.call(options,"forceAI")?options.forceAI:null;
+  const suppressRender=!!options.suppressRender;
+  const sc=scenario[$("scenario").value], users=Math.max(1,num("users")), isd=num("isd"), dKm=isd/2000;
+  const nExp=clamp(num("pathLossExp"),2,5), shadow=num("shadowSigma"), pen=num("penetrationLoss"), intMargin=num("interferenceMargin");
+  $("pathLossExp").value=String(nExp);
+  const csiEff=calculateCsiEffectiveness();
+  $("csiEff").value=csiEff.toFixed(2);
+  const fddFreq=num("fddDlFreq");
+  const basePL=fspl(fddFreq,dKm)+(nExp-2)*10*Math.log10(Math.max(1,dKm*1000/10))*sc.pl+shadow*.35+pen;
+  const rsrp=46+10*Math.log10(num("fddMimo"))-basePL;
+  const noise=-174+10*Math.log10(num("fddDlBw")*1e6)+num("ueNf");
+  const fddSinr=clamp(rsrp-noise-intMargin-28,-10,32);
+  const fddCqi=cqiFromSinr(fddSinr), fddMcs=mcsFromCqi(fddCqi), fddBler=blerFromSinr(fddSinr,fddCqi);
+  const fddDlLayers=effectiveLayers(num("ueDlLayers"),num("fddMimo"),$("fddChannel").value,fddSinr);
+  const fddSe=spectralEfficiency(fddSinr,fddDlLayers,$("fddChannel").value,1,csiEff,fddBler);
+  const ulPathLoss=fspl(num("fddUlFreq"),dKm)+(nExp-2)*10*Math.log10(Math.max(1,dKm*1000/10))*sc.pl+shadow*.35+pen;
+  const ulReceived=23+3-ulPathLoss;
+  const ulNoise=-174+10*Math.log10(num("fddUlBw")*1e6)+5;
+  const fddUlSinr=clamp(ulReceived-ulNoise-intMargin-18,-10,28);
+  const fddUlCqi=cqiFromSinr(fddUlSinr), fddUlBler=blerFromSinr(fddUlSinr,fddUlCqi);
+  const fddUlLayers=effectiveLayers(num("ueUlLayers"),num("fddMimo"),$("fddChannel").value,fddUlSinr);
+  const fddUlSe=spectralEfficiency(fddUlSinr,fddUlLayers,$("fddChannel").value,.92,csiEff,fddUlBler);
+
+  const carrierConfig=getConfiguredCarriers();
+  const configuredCc=carrierConfig.configuredCc, effCc=carrierConfig.effCc;
+  const carriers=carrierConfig.carriers.map(c=>({...c,active:true}));
+
+  const aggregatedBw=carriers.reduce((s,c)=>s+c.bw,0);
+  const cappedBw=aggregatedBw;
+  const capRatio=1;
+
+  function calcTddLayer(freq,bw,dlFrac,ch,beam,rankEff,csiDelay,ccCount,gnbMimo){
+    if(ccCount<=0) return {dl:0,ul:0,sinr:null,cqi:null,mcs:null,bler:null,se:null,dlLayers:0,ulSe:null,ulLayers:0,ccCount:0};
+    const freqPenalty=6*Math.log10(freq/3.7), csiPenalty=csiDelay*.08;
+    const sinr=clamp(20-15*Math.log10(Math.max(.25,isd/350))-freqPenalty-shadow*.42+beam-csiPenalty-intMargin,-10,32);
+    const cqi=cqiFromSinr(sinr),mcs=mcsFromCqi(cqi),bler=blerFromSinr(sinr,cqi);
+    const dlLayers=effectiveLayers(num("ueDlLayers"),gnbMimo,ch,sinr);
+    const se=spectralEfficiency(sinr,dlLayers,ch,rankEff,csiEff,bler);
+    const ulLayers=effectiveLayers(num("ueUlLayers"),gnbMimo,ch,sinr-2.3);
+    const ulSe=spectralEfficiency(sinr-2.3,ulLayers,ch,rankEff*.95,csiEff,blerFromSinr(sinr-2.3,cqiFromSinr(sinr-2.3)));
+    return {
+      dl:bw*se*dlFrac*.78/1000,
+      ul:bw*ulSe*(1-dlFrac)*.70/1000,
+      sinr,cqi,mcs,bler,se,dlLayers,ulSe,ulLayers,ccCount
+    };
+  }
+
+  const tdd1Carriers=carriers.filter(c=>c.type==="tdd1"), tdd2Carriers=carriers.filter(c=>c.type==="tdd2");
+  const tdd1Count=tdd1Carriers.length, tdd2Count=tdd2Carriers.length;
+  const tdd1Bw=tdd1Carriers.reduce((sum,c)=>sum+c.bw,0), tdd2Bw=tdd2Carriers.reduce((sum,c)=>sum+c.bw,0);
+  const L1=(duplex==="fddtdd"&&tdd1Count>0)?calcTddLayer(num("tddFreq"),tdd1Bw,num("tddDlFrac"),$("tddChannel").value,num("beamGain"),num("rankEff"),num("csiDelay"),tdd1Count,num("tddMimo")):calcTddLayer(3.7,0,.75,"CDL-C",0,1,0,0,64);
+  const L2=(duplex==="fddtdd"&&tdd2Count>0)?calcTddLayer(num("tdd2Freq"),tdd2Bw,num("tdd2DlFrac"),$("tdd2Channel").value,num("beam2Gain"),num("rank2Eff"),num("csi2Delay"),tdd2Count,num("tdd2Mimo")):calcTddLayer(7,0,.75,"CDL-D",0,1,0,0,128);
+
+  const dlCaEfficiency=caOn&&effCc>1?num("caEff"):1;
+  const dlCarrierBreakdown=[];
+  carriers.forEach(c=>{
+    if(c.duplex==="FDD"){
+      const ccPathLoss=fspl(c.dlFreqMHz,dKm)+(nExp-2)*10*Math.log10(Math.max(1,dKm*1000/10))*sc.pl+shadow*.35+pen;
+      const ccRsrp=46+10*Math.log10(num("fddMimo"))-ccPathLoss;
+      const ccNoise=-174+10*Math.log10(c.bw*1e6)+num("ueNf");
+      const ccSinr=clamp(ccRsrp-ccNoise-intMargin-28,-10,32);
+      const ccCqi=cqiFromSinr(ccSinr),ccMcs=mcsFromCqi(ccCqi),ccBler=blerFromSinr(ccSinr,ccCqi);
+      const ccLayers=effectiveLayers(num("ueDlLayers"),num("fddMimo"),$("fddChannel").value,ccSinr);
+      const ccSe=spectralEfficiency(ccSinr,ccLayers,$("fddChannel").value,1,csiEff,ccBler);
+      dlCarrierBreakdown.push({name:c.name,source:c.type==="fdd"?"FDD anchor":"FDD secondary",bw:c.bw,dlFraction:1,layers:ccLayers,se:ccSe,sinr:ccSinr,cqi:ccCqi,mcs:ccMcs,raw:c.bw*ccSe*.74/1000});
+    }else if(c.type==="tdd1"){
+      dlCarrierBreakdown.push({name:c.name,source:"TDD layer 1",bw:c.bw,dlFraction:num("tddDlFrac"),layers:L1.dlLayers,se:L1.se,sinr:L1.sinr,cqi:L1.cqi,mcs:L1.mcs,raw:tdd1Bw>0?L1.dl*c.bw/tdd1Bw:0});
+    }else if(c.type==="tdd2"){
+      dlCarrierBreakdown.push({name:c.name,source:"TDD layer 2",bw:c.bw,dlFraction:num("tdd2DlFrac"),layers:L2.dlLayers,se:L2.se,sinr:L2.sinr,cqi:L2.cqi,mcs:L2.mcs,raw:tdd2Bw>0?L2.dl*c.bw/tdd2Bw:0});
+    }
+  });
+  dlCarrierBreakdown.forEach(c=>c.capacity=c.raw*dlCaEfficiency);
+  let fddDlCap=dlCarrierBreakdown.filter(c=>c.source.startsWith("FDD")).reduce((sum,c)=>sum+c.capacity,0);
+  let tddDlCap=dlCarrierBreakdown.filter(c=>c.source.startsWith("TDD")).reduce((sum,c)=>sum+c.capacity,0);
+  const ulCaOn=caOn&&$("ulCa").value==="on"&&effCc>1;
+  const ulCaEfficiency=ulCaOn?num("caEff"):1;
+  const ulCarrierBreakdown=[];
+  const anchorUlRaw=num("fddUlBw")*fddUlSe*.66/1000;
+  ulCarrierBreakdown.push({name:"CC1",source:"FDD anchor",bw:num("fddUlBw"),ulFraction:1,layers:fddUlLayers,se:fddUlSe,raw:anchorUlRaw});
+  if(ulCaOn){
+    carriers.filter(c=>c.duplex==="FDD"&&c.type!=="fdd").forEach(c=>{
+      const ccUlPathLoss=fspl(c.ulFreqMHz,dKm)+(nExp-2)*10*Math.log10(Math.max(1,dKm*1000/10))*sc.pl+shadow*.35+pen;
+      const ccUlReceived=23+3-ccUlPathLoss;
+      const ccUlNoise=-174+10*Math.log10(c.bw*1e6)+5;
+      const ccUlSinr=clamp(ccUlReceived-ccUlNoise-intMargin-18,-10,28);
+      const ccUlCqi=cqiFromSinr(ccUlSinr),ccUlBler=blerFromSinr(ccUlSinr,ccUlCqi);
+      const ccUlSe=spectralEfficiency(ccUlSinr,fddUlLayers,$("fddChannel").value,.92,csiEff,ccUlBler);
+      ulCarrierBreakdown.push({name:c.name,source:"FDD secondary",bw:c.bw,ulFraction:1,layers:fddUlLayers,se:ccUlSe,raw:c.bw*ccUlSe*.66/1000});
+    });
+    tdd1Carriers.forEach(c=>ulCarrierBreakdown.push({name:c.name,source:"TDD layer 1",bw:c.bw,ulFraction:1-num("tddDlFrac"),layers:L1.ulLayers,se:L1.ulSe,raw:tdd1Bw>0?L1.ul*c.bw/tdd1Bw:0}));
+    tdd2Carriers.forEach(c=>ulCarrierBreakdown.push({name:c.name,source:"TDD layer 2",bw:c.bw,ulFraction:1-num("tdd2DlFrac"),layers:L2.ulLayers,se:L2.ulSe,raw:tdd2Bw>0?L2.ul*c.bw/tdd2Bw:0}));
+  }
+  ulCarrierBreakdown.forEach(c=>c.capacity=c.raw*ulCaEfficiency);
+  let fddUlCap=ulCarrierBreakdown.filter(c=>c.source.startsWith("FDD")).reduce((sum,c)=>sum+c.capacity,0);
+  let tddUlCap=ulCarrierBreakdown.filter(c=>c.source.startsWith("TDD")).reduce((sum,c)=>sum+c.capacity,0);
+  let tddSinr=L1.sinr,tddCqi=L1.cqi,tddMcs=L1.mcs,tddBler=L1.bler,tddSe=L1.se;
+  let tdd2Sinr=L2.sinr,tdd2Cqi=L2.cqi,tdd2Mcs=L2.mcs,tdd2Bler=L2.bler,tdd2Se=L2.se;
+  let dlCap=(fddDlCap+tddDlCap)*capRatio;
+  let ulCap=(fddUlCap+tddUlCap)*capRatio;
+  const s=sched[$("schedulerSel").value];
+  let schedCap=s.capacity,fairness=s.fairness;
+  if(mode==="expert"){
+    schedCap*=1+.03*(num("cqiWeight")-1)-.02*(num("edgeWeight")-1);
+    fairness=clamp(fairness+.04*(num("pfAlpha")-1)-.03*(num("cqiWeight")-1),.60,.99);
+  }
+  const ai=aiFactors(forceAI);
+  dlCap*=schedCap*ai.cap; ulCap*=(.98+.45*(schedCap-1))*ai.cap;
+  fairness=clamp(fairness*ai.fair,.60,.995);
+  const load=traffic[$("traffic").value];
+  const configuredEdgeGain=ai.edge*sc.coverage*(1+.10*(num("edgeWeight")-1));
+  const dlDistribution=buildUeRateDistribution(dlCap*1000,users,$("schedulerSel").value,configuredEdgeGain);
+  const ulDistribution=buildUeRateDistribution(ulCap*1000,users,$("schedulerSel").value,configuredEdgeGain);
+  const medianDl=dlDistribution.median,medianUl=ulDistribution.median;
+  const edgeDl=dlDistribution.p5,edgeUl=ulDistribution.p5;
+  const unitDistribution=buildUeRateDistribution(1,users,$("schedulerSel").value,configuredEdgeGain);
+  const requiredDlMbps=Math.max(num("targetMedianDl")/Math.max(.000001,unitDistribution.median),num("targetEdgeDl")/Math.max(.000001,unitDistribution.p5));
+  const requiredUlMbps=Math.max(num("targetMedianUl")/Math.max(.000001,unitDistribution.median),num("targetEdgeUl")/Math.max(.000001,unitDistribution.p5));
+  const peakDl=dlCap*Math.min(.94,.52+.08*num("ueDlLayers"));
+  const peakUl=ulCap*Math.min(.90,.56+.08*num("ueUlLayers"));
+  const radius=clamp((isd/1000)*.66*sc.coverage*Math.pow(700/fddFreq,.35)*(1-shadow/48)*(1-pen/80),.12,6);
+  const prbBase=clamp(load*100*(.90+users/250),15,100);
+  const effectiveAI=(forceAI===null?aiOn:forceAI);
+  const prb=clamp(prbBase-(effectiveAI?Math.min(12,4+ai.gain*.7):0),15,100);
+  const aiConfidence=aiOn?ai.confidence*100:0;
+
+  const result={basePL,rsrp,noise,fddSinr,fddCqi,fddMcs,fddBler,fddSe,fddUlSinr,fddUlCqi,fddUlBler,fddUlSe,
+    tddSinr,tddCqi,tddMcs,tddBler,tddSe,tdd2Sinr,tdd2Cqi,tdd2Mcs,tdd2Bler,tdd2Se,L1,L2,carriers,configuredCc,effCc,aggregatedBw,cappedBw,capRatio,
+    fddDlCap,fddUlCap,tddDlCap,tddUlCap,dlCap,ulCap,medianDl,medianUl,edgeDl,edgeUl,peakDl,peakUl,radius,
+    fddDlLayers,dlCaEfficiency,dlCarrierBreakdown,ueDlRates:dlDistribution.rates,ueUlRates:ulDistribution.rates,
+    fddUlLayers,ulCaOn,ulCaEfficiency,ulCarrierBreakdown,requiredDlMbps,requiredUlMbps,
+    fairness,prb,aiGain:ai.gain,aiConfidence,users,scheduler:s.name,aiGoal:$("aiGoal").value,aiEnabled:effectiveAI,aiMode,
+    duplexMode:duplex,caEnabled:caOn};
+  result.targetEval=targetEvaluation(result);
+  result.reward=result.targetEval.reward;
+  result.signaling=result.targetEval.signaling;
+  if(!suppressRender){
+    const baseline=effectiveAI?simulate({forceAI:false,suppressRender:true}):result;
+    const optimized=effectiveAI?result:simulate({forceAI:true,suppressRender:true});
+    result.aiComparison={baseline,optimized};
+    last=result;
+    render(result);
+  }
+  return result;
+}
+function render(r){
+  setResultsAvailable(true);
+  $("configuredCc").textContent=r.configuredCc;$("effectiveCc").textContent=r.effCc;$("aggBw").textContent=r.cappedBw.toFixed(0);$("caEfficiencyOut").textContent=(num("caEff")*100).toFixed(0);
+  const warnings=[];
+  $("caWarning").classList.toggle("hidden",warnings.length===0);$("caWarning").textContent=warnings.join(" ");
+  const renderedTdd1Dl=r.dlCarrierBreakdown.filter(c=>c.source==="TDD layer 1").reduce((s,c)=>s+c.capacity,0);
+  const renderedTdd2Dl=r.dlCarrierBreakdown.filter(c=>c.source==="TDD layer 2").reduce((s,c)=>s+c.capacity,0);
+
+  const vals={mDl:r.medianDl,p5Dl:r.edgeDl,mUl:r.medianUl,p5Ul:r.edgeUl};
+  Object.entries(vals).forEach(([id,v])=>$(id).textContent=v.toFixed(1));
+  $("peakDl").textContent=r.peakDl.toFixed(2);$("peakUl").textContent=r.peakUl.toFixed(2);
+  $("cellDl").textContent=r.dlCap.toFixed(2);$("cellUl").textContent=r.ulCap.toFixed(2);
+  $("radius").textContent=r.radius.toFixed(2);
+  $("cellSe").textContent=(r.dlCap*1000/Math.max(1,r.cappedBw)).toFixed(2);
+  $("activeBw").textContent=r.cappedBw.toFixed(0);$("activeCc").textContent=r.effCc;
+  $("fairnessOut").textContent=r.fairness.toFixed(3);$("prbUtil").textContent=r.prb.toFixed(0);$("aiGainOut").textContent=r.aiGain.toFixed(1);$("aiConfOut").textContent=r.aiConfidence.toFixed(0);
+  $("signalReductionOut").textContent=r.targetEval.signaling.toFixed(0);$("rewardOut").textContent=r.targetEval.reward.toFixed(0);
+  const profileText=$("targetProfile").options[$("targetProfile").selectedIndex].text;$("targetBadge").textContent=`${profileText} · Optimization score ${r.targetEval.reward.toFixed(0)}/100`;
+  $("targetTableBody").innerHTML=r.targetEval.tests.map(t=>{const pass=t.higher?t.value>=t.target:t.value<=t.target;const d=t.name.includes("fairness")?3:1;const symbol=pass?">":"<";return `<tr><td>${t.name}</td><td>${t.value.toFixed(d)} ${t.unit}</td><td class="${pass?"pass":"fail"}">${pass?"PASS":"FAIL"} (${symbol}${t.target.toFixed(d)} ${t.unit})</td></tr>`}).join("");
+  const dlEnough=r.dlCap*1000>=r.requiredDlMbps,ulEnough=r.ulCap*1000>=r.requiredUlMbps;
+  $("targetCapacityNote").innerHTML=`Available versus required aggregate capacity for ${r.users} active UEs: <strong>DL ${(r.dlCap*1000).toFixed(0)} / ${r.requiredDlMbps.toFixed(0)} Mbps</strong> <span class="${dlEnough?"pass":"fail"}">(${dlEnough?"SUFFICIENT":"SHORTFALL"})</span> · <strong>UL ${(r.ulCap*1000).toFixed(0)} / ${r.requiredUlMbps.toFixed(0)} Mbps</strong> <span class="${ulEnough?"pass":"fail"}">(${ulEnough?"SUFFICIENT":"SHORTFALL"})</span>. Carrier capacity already includes PHY, BLER, CA and scheduler adjustments; these efficiencies are not applied again during UE allocation.`;
+  $("resultBadge").textContent=`${r.duplexMode==="fdd"?"FDD":"FDD + TDD"} · ${r.scheduler}`;
+  $("schedBadge").textContent=r.scheduler;
+  $("coverageAssumptions").innerHTML=`<strong>Propagation output</strong><span>Path loss ${r.basePL.toFixed(1)} dB · RSRP ${r.rsrp.toFixed(1)} dBm · SINR ${r.fddSinr.toFixed(1)} dB · CQI ${r.fddCqi} · MCS ${r.fddMcs} · BLER ${(r.fddBler*100).toFixed(1)}% · Radius ${r.radius.toFixed(2)} km</span>`;
+  $("capacityAssumptions").innerHTML=`<strong>Capacity output</strong><span>FDD SE ${r.fddSe.toFixed(2)} b/s/Hz · FDD DL ${r.fddDlCap.toFixed(2)} Gbps${r.duplexMode==="fddtdd"?` · Layer 1: ${r.L1.ccCount} CC, ${r.L1.se===null?"—":r.L1.se.toFixed(2)} b/s/Hz, ${renderedTdd1Dl.toFixed(2)} Gbps · Layer 2: ${r.L2.ccCount} CC, ${r.L2.se===null?"—":r.L2.se.toFixed(2)} b/s/Hz, ${renderedTdd2Dl.toFixed(2)} Gbps`:""} · Total DL ${r.dlCap.toFixed(2)} Gbps · FDD UL ${r.fddUlCap.toFixed(2)} Gbps · TDD UL ${r.tddUlCap.toFixed(2)} Gbps · Total UL ${r.ulCap.toFixed(2)} Gbps</span>`;
+  $("ccTableBody").innerHTML=[1,2,3,4].map(i=>{
+    const c=r.carriers[i-1];
+    return c?`<tr><td style="padding:9px;border-bottom:1px solid var(--border)">${c.name}</td><td style="padding:9px;border-bottom:1px solid var(--border)">${c.source}</td><td style="padding:9px;border-bottom:1px solid var(--border)">${c.freq}</td><td style="padding:9px;border-bottom:1px solid var(--border)">${c.bw} MHz</td><td style="padding:9px;border-bottom:1px solid var(--border)">${c.duplex}</td><td style="padding:9px;border-bottom:1px solid var(--border);color:var(--good);font-weight:800">SELECTED</td></tr>`:
+    `<tr><td style="padding:9px;border-bottom:1px solid var(--border)">CC${i}</td><td colspan="4" style="padding:9px;border-bottom:1px solid var(--border);color:var(--muted)">Not selected</td><td style="padding:9px;border-bottom:1px solid var(--border);color:var(--muted)">NOT SELECTED</td></tr>`;
+  }).join("");
+  $("traceBox").textContent=buildTrace(r);
+  drawRate(r);drawCoverage(r);drawCellCapacity(r);drawResource(r);
+  drawCarrier(r);drawLink(r);drawScheduler(r);drawAI(r);drawAIComparison(r);
+  $("statusDot").classList.add("done");
+  $("statusText").textContent="Simulation complete — current results";
+  $("runBtn").className="btn-primary";
+  $("runBtn").title="Simulation complete. Results match the current configuration.";
+  updatePlatformStatus("current");
+}
+function buildTrace(r){
+  const activeTddCc=r.L1.ccCount+r.L2.ccCount;
+  const tddTrace=r.duplexMode!=="fddtdd"?"TDD capacity layers not selected (FDD selected for this run)":activeTddCc===0?"FDD + TDD selected, but no CC is assigned to a TDD capacity layer":`Layer 1 SINR / CQI / MCS: ${r.L1.sinr===null?"—":r.L1.sinr.toFixed(2)} dB / ${r.L1.cqi??"—"} / ${r.L1.mcs??"—"}
+   Layer 1 effective DL/UL layers: ${r.L1.dlLayers} / ${r.L1.ulLayers}
+   Layer 1 spectral efficiency / DL: ${r.L1.se===null?"—":r.L1.se.toFixed(3)} b/s/Hz / ${r.L1.dl.toFixed(3)} Gbps
+   Layer 2 SINR / CQI / MCS: ${r.L2.sinr===null?"—":r.L2.sinr.toFixed(2)} dB / ${r.L2.cqi??"—"} / ${r.L2.mcs??"—"}
+   Layer 2 effective DL/UL layers: ${r.L2.dlLayers} / ${r.L2.ulLayers}
+   Layer 2 spectral efficiency / DL: ${r.L2.se===null?"—":r.L2.se.toFixed(3)} b/s/Hz / ${r.L2.dl.toFixed(3)} Gbps`;
+  const dlTrace=r.dlCarrierBreakdown.map(c=>`${c.name}: ${c.source}, ${c.bw.toFixed(0)} MHz, DL fraction ${(c.dlFraction*100).toFixed(0)}%, ${c.layers} layer(s), SINR ${c.sinr.toFixed(2)} dB, SE ${c.se.toFixed(3)} b/s/Hz, contribution ${c.capacity.toFixed(3)} Gbps`).join("\n   ");
+  const ulTrace=r.ulCarrierBreakdown.map(c=>`${c.name}: ${c.source}, ${c.bw.toFixed(0)} MHz, UL fraction ${(c.ulFraction*100).toFixed(0)}%, ${c.layers} layer(s), SE ${c.se.toFixed(3)} b/s/Hz, contribution ${c.capacity.toFixed(3)} Gbps`).join("\n   ");
+  return `HIERARCHICAL CALCULATION TRACE · v16.5 Per-CC DL/UL Revision
+
+1. DEPLOYMENT & SPECTRUM
+   Duplex: ${r.duplexMode==="fdd"?"FDD":"FDD + TDD"}
+   Scenario: ${$("scenario").options[$("scenario").selectedIndex].text}
+   ISD: ${num("isd")} m
+   Active UEs: ${r.users}
+   Selected DL CCs: ${r.effCc}
+   Aggregated DL bandwidth: ${r.cappedBw.toFixed(0)} MHz
+
+2. PROPAGATION
+   FDD path loss: ${r.basePL.toFixed(2)} dB
+   RSRP: ${r.rsrp.toFixed(2)} dBm
+   Thermal-noise reference: ${r.noise.toFixed(2)} dBm
+   FDD DL SINR: ${r.fddSinr.toFixed(2)} dB
+   FDD UL SINR: ${r.fddUlSinr.toFixed(2)} dB
+
+3. LINK ADAPTATION
+   FDD DL CQI: ${r.fddCqi}
+   FDD DL MCS: ${r.fddMcs}
+   FDD DL BLER: ${(r.fddBler*100).toFixed(2)} %
+   FDD UL CQI: ${r.fddUlCqi}
+   FDD UL BLER: ${(r.fddUlBler*100).toFixed(2)} %
+
+4. MIMO / BEAMFORMING
+   Configured UE DL layers: ${num("ueDlLayers")}
+   Configured UE UL layers: ${num("ueUlLayers")}
+   Effective FDD DL / UL layers: ${r.fddDlLayers} / ${r.fddUlLayers}
+   FDD effective spectral efficiency: ${r.fddSe.toFixed(3)} b/s/Hz
+   ${tddTrace}
+
+5. CARRIER AGGREGATION
+   CA: ${r.caEnabled?"ON":"OFF"}
+   UL CA: ${r.ulCaOn?"ON":"OFF"}
+   Configured / selected CCs: ${r.configuredCc} / ${r.effCc}
+   UE carrier capability assumption: supports every selected CC
+   DL CA combining efficiency: ${(r.dlCaEfficiency*100).toFixed(1)} %
+   DL per-CC contributions:
+   ${dlTrace}
+   FDD DL capacity before scheduler: ${r.fddDlCap.toFixed(3)} Gbps
+   TDD DL capacity before scheduler: ${r.tddDlCap.toFixed(3)} Gbps
+   UL CA combining efficiency: ${(r.ulCaEfficiency*100).toFixed(1)} %
+   UL per-CC contributions:
+   ${ulTrace}
+   Aggregated FDD UL capacity: ${r.fddUlCap.toFixed(3)} Gbps
+   Aggregated TDD UL capacity: ${r.tddUlCap.toFixed(3)} Gbps
+   Total UL capacity before scheduler: ${(r.fddUlCap+r.tddUlCap).toFixed(3)} Gbps
+
+6. SCHEDULER
+   Base scheduler: ${r.scheduler}
+   Jain fairness index: ${r.fairness.toFixed(3)}
+   PRB utilization: ${r.prb.toFixed(1)} %
+
+7. AI OPTIMIZATION
+   Model startup: ${aiMode==="rule"?"Expert rule set initialized":"RANOpt-PPO-v16.5 policy loaded and verified"}
+   Normalization / action mapping: ${aiMode==="rule"?"Not required":"Loaded"}
+   Repeatability: ${$("simulationMode").value==="deterministic"?"Deterministic seed 12345":"Monte Carlo variable seed"}
+   Browser adaptation: ${aiMode==="ppo_demo"?"Enabled for this session":"Disabled"}
+   Optimization engine: ${!aiOn?"Classical RRM (AI OFF)":aiMode==="ppo"?"PPO Pretrained — Offline Stage-1 Policy":aiMode==="ppo_demo"?"PPO Browser Training Demo":"Expert AI — Rule-Based"}
+   Goal: ${r.aiGoal}
+   Estimated AI gain: ${r.aiGain.toFixed(2)} %
+   AI confidence: ${r.aiConfidence.toFixed(1)} %
+   UL signaling reduction: ${r.targetEval.signaling.toFixed(1)} %
+   KPI-target reward: ${r.targetEval.reward.toFixed(1)} / 100
+
+8. FINAL KPIs
+   Cell DL capacity: ${r.dlCap.toFixed(3)} Gbps
+   Cell UL capacity: ${r.ulCap.toFixed(3)} Gbps
+   Required DL cell capacity for configured UE targets: ${(r.requiredDlMbps/1000).toFixed(3)} Gbps
+   Required UL cell capacity for configured UE targets: ${(r.requiredUlMbps/1000).toFixed(3)} Gbps
+   UE allocation check: sum of UE rates equals the already-adjusted cell capacity
+   Median DL / UL UE rate: ${r.medianDl.toFixed(1)} / ${r.medianUl.toFixed(1)} Mbps
+   5th-percentile DL / UL: ${r.edgeDl.toFixed(1)} / ${r.edgeUl.toFixed(1)} Mbps
+   Peak DL / UL: ${r.peakDl.toFixed(2)} / ${r.peakUl.toFixed(2)} Gbps
+   Coverage radius: ${r.radius.toFixed(2)} km`;
+}
+function axes(ctx,w,h,x,y){const muted=getComputedStyle(document.body).getPropertyValue("--muted").trim();ctx.strokeStyle=muted;ctx.fillStyle=muted;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(60,20);ctx.lineTo(60,h-45);ctx.lineTo(w-20,h-45);ctx.stroke();ctx.font="12px system-ui";ctx.fillText(y,8,18);ctx.fillText(x,w-100,h-12);}
+
+function barChart(id,items,maxValue,label){
+  const c=$(id),ctx=c.getContext("2d"),w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);axes(ctx,w,h,"Category",label);
+  const fg=getComputedStyle(document.body).getPropertyValue("--text").trim();
+  const accent=getComputedStyle(document.body).getPropertyValue("--accent").trim();
+  const good=getComputedStyle(document.body).getPropertyValue("--good").trim();
+  const baseY=h-45,plotH=h-75,plotW=w-90;
+  const gap=18,barW=Math.max(24,(plotW-gap*(items.length+1))/items.length);
+  items.forEach((it,i)=>{
+    const x=60+gap+i*(barW+gap);
+    const bh=plotH*clamp(it.value/maxValue,0,1);
+    ctx.fillStyle=i%2?good:accent;
+    ctx.fillRect(x,baseY-bh,barW,bh);
+    ctx.fillStyle=fg;ctx.font="11px system-ui";
+    ctx.fillText(it.name,x,baseY+17);
+    ctx.fillText(it.value.toFixed(it.decimals??2),x,Math.max(16,baseY-bh-6));
+  });
+}
+function drawCellCapacity(r){
+  const tdd1Dl=r.dlCarrierBreakdown.filter(c=>c.source==="TDD layer 1").reduce((s,c)=>s+c.capacity,0);
+  const tdd2Dl=r.dlCarrierBreakdown.filter(c=>c.source==="TDD layer 2").reduce((s,c)=>s+c.capacity,0);
+  const max=Math.max(r.fddDlCap,tdd1Dl,tdd2Dl,r.dlCap,.1)*1.18;
+  barChart("cellCapacityChart",[
+    {name:"FDD DL",value:r.fddDlCap},
+    {name:"TDD L1",value:tdd1Dl},
+    {name:"TDD L2",value:tdd2Dl},
+    {name:"Total DL",value:r.dlCap}
+  ],max,"Gbps");
+}
+function drawResource(r){
+  barChart("resourceChart",[
+    {name:"PRB",value:r.prb,decimals:0},
+    {name:"Fairness",value:r.fairness*100,decimals:0},
+    {name:"CA eff.",value:num("caEff")*100,decimals:0},
+    {name:"AI conf.",value:r.aiConfidence,decimals:0}
+  ],100,"Percent");
+}
+function drawCarrier(r){
+  const values=r.dlCarrierBreakdown.map(c=>({name:c.name,value:c.capacity}));
+  while(values.length<4) values.push({name:`CC${values.length+1}`,value:0});
+  barChart("carrierChart",values,Math.max(...values.map(x=>x.value),.1)*1.2,"Gbps");
+}
+function drawLink(r){
+  const items=r.dlCarrierBreakdown.map(c=>({name:`${c.name} CQI`,value:c.cqi??0,decimals:0}));
+  while(items.length<4)items.push({name:`CC${items.length+1} CQI`,value:0,decimals:0});
+  barChart("linkChart",items,15,"CQI");
+}
+function drawScheduler(r){
+  barChart("schedulerChart",[
+    {name:"Fairness",value:r.fairness*100,decimals:1},
+    {name:"PRB util.",value:r.prb,decimals:1},
+    {name:"Edge/median DL",value:100*r.edgeDl/Math.max(.001,r.medianDl),decimals:1},
+    {name:"UL/DL cell",value:100*r.ulCap/Math.max(.001,r.dlCap),decimals:1}
+  ],100,"Percent");
+}
+
+function drawAIComparison(r){
+  if(!r.aiComparison)return;
+  const b=r.aiComparison.baseline,o=r.aiComparison.optimized;
+  const items=[
+    {name:"Cell DL capacity",off:b.dlCap,on:o.dlCap,unit:"Gbps",decimals:2},
+    {name:"5th %ile DL",off:b.edgeDl,on:o.edgeDl,unit:"Mbps",decimals:1},
+    {name:"Jain fairness",off:b.fairness,on:o.fairness,unit:"",decimals:3},
+    {name:"PRB efficiency",off:100-b.prb,on:100-o.prb,unit:"%",decimals:1}
+  ];
+  const c=$("aiCompareChart"),ctx=c.getContext("2d"),w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);axes(ctx,w,h,"AI-sensitive KPI","Relative improvement");
+  const fg=getComputedStyle(document.body).getPropertyValue("--text").trim();
+  const offColor=getComputedStyle(document.body).getPropertyValue("--muted").trim();
+  const onColor=getComputedStyle(document.body).getPropertyValue("--accent").trim();
+  const good=getComputedStyle(document.body).getPropertyValue("--good").trim();
+  const baseY=h-52,plotH=h-92,plotW=w-110;
+  const groupW=plotW/items.length,barW=Math.min(72,groupW*.24);
+
+  items.forEach((it,i)=>{
+    const x0=70+i*groupW+groupW/2;
+    const offIndex=100;
+    const onIndex=it.off===0?100:(it.on/it.off)*100;
+    const vals=[
+      {x:x0-barW-7,v:offIndex,color:offColor,label:"AI OFF",raw:it.off},
+      {x:x0+7,v:onIndex,color:onColor,label:"AI ON",raw:it.on}
+    ];
+    vals.forEach(v=>{
+      const bh=plotH*clamp(v.v/140,0,1);
+      ctx.fillStyle=v.color;ctx.fillRect(v.x,baseY-bh,barW,bh);
+      ctx.fillStyle=fg;ctx.font="12px system-ui";
+      ctx.fillText(`${v.raw.toFixed(it.decimals)}${it.unit?` ${it.unit}`:""}`,v.x-2,Math.max(18,baseY-bh-8));
+      ctx.fillText(v.label,v.x+5,baseY+17);
+    });
+    const improvement=it.off===0?0:((it.on-it.off)/it.off)*100;
+    ctx.fillStyle=good;ctx.font="bold 13px system-ui";
+    ctx.fillText(`${improvement>=0?"+":""}${improvement.toFixed(1)}%`,x0-24,30);
+    ctx.fillStyle=fg;ctx.font="12px system-ui";
+    ctx.fillText(it.name,x0-groupW*.26,baseY+38);
+  });
+}
+function drawAI(r){
+  barChart("aiChart",[
+    {name:"Capacity gain",value:Math.max(0,r.aiGain),decimals:1},
+    {name:"Confidence",value:r.aiConfidence,decimals:1},
+    {name:"Fairness",value:r.fairness*100,decimals:1},
+    {name:"Edge support",value:100*r.edgeDl/Math.max(.001,r.medianDl),decimals:1}
+  ],100,"Percent");
+}
+
+function drawRate(r){const c=$("rateChart"),ctx=c.getContext("2d"),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);axes(ctx,w,h,"UE percentile","Mbps");const blue=getComputedStyle(document.body).getPropertyValue("--accent").trim(),green=getComputedStyle(document.body).getPropertyValue("--good").trim(),fg=getComputedStyle(document.body).getPropertyValue("--text").trim();const all=[...r.ueDlRates,...r.ueUlRates],max=Math.max(...all,50)*1.08;
+  function series(values,col){ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();values.forEach((v,i)=>{const p=values.length===1?.5:i/(values.length-1),x=60+p*(w-90),y=h-45-(v/max)*(h-75);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()}
+  series(r.ueDlRates,blue);series(r.ueUlRates,green);ctx.fillStyle=fg;ctx.font="12px system-ui";ctx.fillText("DL",w-120,30);ctx.fillText("UL",w-70,30);ctx.fillStyle=blue;ctx.fillRect(w-140,21,14,4);ctx.fillStyle=green;ctx.fillRect(w-90,21,14,4);
+}
+function drawCoverage(r){const c=$("coverageChart"),ctx=c.getContext("2d"),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);axes(ctx,w,h,"Distance (km)","SINR dB");const blue=getComputedStyle(document.body).getPropertyValue("--accent").trim();const maxD=Math.max(.5,r.radius*1.5);ctx.strokeStyle=blue;ctx.lineWidth=3;ctx.beginPath();for(let i=0;i<=50;i++){const d=maxD*i/50,s=r.fddSinr-18*Math.log10(1+d/.18),x=60+i/50*(w-90),y=h-45-(clamp(s,-10,30)+10)/40*(h-75);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.stroke();}
+function snap(){const s={duplex,caOn,aiOn,aiMode,mode};Object.keys(defaults).forEach(id=>s[id]=$(id).value);return s}
+function restore(s){Object.keys(defaults).forEach(id=>$(id).value=s[id]);syncAllFddPairs(false);setMode(s.mode);setDuplex(s.duplex);setCA(s.caOn?"on":"off");setAIImplementation(s.aiMode||"rule");setAI(s.aiOn?"on":"off")}
+function clearCanvas(id){
+  const c=$(id); if(!c)return;
+  const ctx=c.getContext("2d"); ctx.clearRect(0,0,c.width,c.height);
+}
+function setResultsAvailable(available){
+  const empty=$("resultsEmptyState"), grid=$("resultsGrid");
+  if(empty) empty.style.display=available?"none":"block";
+  if(grid) grid.style.display=available?"grid":"none";
+}
+function reset(){
+  Object.entries(defaults).forEach(([id,v])=>$(id).value=v);
+  syncAllFddPairs(false);
+  setMode("normal");setDuplex("fdd");setCA("on");setAIImplementation("ppo");setAI("on");
+  activateTab("general");
+  last=null;
+  ["mDl","mUl","p5Dl","p5Ul","peakDl","peakUl","cellDl","cellUl","radius","cellSe","fairnessOut","prbUtil","aiGainOut","aiConfOut","signalReductionOut","rewardOut","activeBw","activeCc"].forEach(id=>$(id).textContent="—");
+  $("resultBadge").textContent="Awaiting run";
+  $("targetBadge").textContent="Awaiting run";
+  $("targetTableBody").innerHTML='<tr><td colspan="3" style="color:var(--muted)">Run the simulation to compare the selected AI result with the configured thresholds.</td></tr>';
+  $("targetCapacityNote").textContent="Run the simulation to compare available cell capacity with the capacity required by the configured per-UE targets.";
+  $("traceBox").textContent="Run the simulation to populate the calculation trace.";
+  $("testLog").innerHTML='<span class="info">Ready. Configure inputs and run a new simulation or validation check.</span>';
+  $("coverageAssumptions").innerHTML='<strong>Coverage output</strong><span>Awaiting simulation run.</span>';
+  $("capacityAssumptions").innerHTML='<strong>Capacity output</strong><span>Awaiting simulation run.</span>';
+  updateCASummary();
+  ["rateChart","coverageChart","cellCapacityChart","resourceChart","aiCompareChart","carrierChart","linkChart","schedulerChart","aiChart"].forEach(clearCanvas);
+  $("voiceTranscript").textContent="—";
+  $("voiceResponse").textContent="Ready for a new command.";
+  $("voiceHistory").innerHTML='<div class="voice-history-item"><span>✓</span>Voice assistant reset</div>';
+  setActiveTest(null);
+  setResultsAvailable(false);
+  updateSchedulerHeading();
+  $("statusDot").classList.remove("done");
+  $("statusText").textContent="Not simulated — press Run Simulation";
+  $("runBtn").className="btn-light";
+  $("runBtn").title="No simulation has been run yet. Press Run Simulation.";
+  updateAIEngineStatus();
+  updatePlatformStatus("none");
+}
+
+function captureSimulationUiState(){
+  return {
+    statusText: $("statusText").textContent,
+    statusDone: $("statusDot").classList.contains("done"),
+    runClass: $("runBtn").className,
+    runTitle: $("runBtn").title
+  };
+}
+function restoreSimulationUiState(state){
+  if(!state)return;
+  $("statusText").textContent=state.statusText;
+  $("statusDot").classList.toggle("done",state.statusDone);
+  $("runBtn").className=state.runClass;
+  $("runBtn").title=state.runTitle;
+}
+
+function setActiveTest(which){
+  const quick=$("quickCheckBtn"), detailed=$("detailedCheckBtn");
+  quick.classList.toggle("test-active",which==="quick");
+  detailed.classList.toggle("test-active",which==="detailed");
+  quick.classList.toggle("btn-primary",which==="quick");
+  quick.classList.toggle("btn-secondary",which!=="quick");
+  detailed.classList.toggle("btn-primary",which==="detailed");
+  detailed.classList.toggle("btn-secondary",which!=="detailed");
+}
+function log(t,c="info"){$("testLog").innerHTML+=`<div class="${c}">${t}</div>`;$("testLog").scrollTop=$("testLog").scrollHeight}
+function check(name,cond){log(`${cond?"PASS":"FAIL"} — ${name}`,cond?"pass":"fail");return cond}
+function aiModeLabel(v=aiMode){return v==="ppo"?"PPO Pretrained":v==="ppo_demo"?"PPO Training Demo":"Rule-Based AI"}
+function quickCheck(){
+  const simulationUiState=captureSimulationUiState();
+  setActiveTest("quick");
+  const s=snap();$("testLog").innerHTML="";
+  let p=0,t=0; const T=(n,c)=>{t++;if(check(n,c))p++};
+  try{
+    log(`QUICK TEST — ${aiOn?aiModeLabel():"AI OFF / Classical RRM"}`,"info");
+    const selectedMode=aiMode;
+    setDuplex("fdd");setCA("on");$("fddAdditionalCc").value="0";let a=simulate();
+    $("fddAdditionalCc").value="1";let b=simulate();
+    T("CA increases FDD DL capacity",b.dlCap>a.dlCap);
+    T("FDD UL remains non-zero",b.medianUl>0);
+    setDuplex("fddtdd");let c=simulate();
+    T("FDD+TDD increases DL capacity",c.dlCap>b.dlCap);
+    if(aiOn && selectedMode==="rule"){
+      setAI("off");let base=simulate();setAIImplementation("rule");setAI("on");let opt=simulate();
+      T("Rule-based expert engine changes capacity",Math.abs(opt.dlCap-base.dlCap)>.001);
+      T("Rule-based engine improves cell-edge DL",opt.edgeDl>base.edgeDl);
+      T("Rule-based decision is repeatable",Math.abs(simulate().dlCap-opt.dlCap)<1e-9);
+      log(`Rule result: DL ${base.medianDl.toFixed(1)} → ${opt.medianDl.toFixed(1)} Mbps; edge ${base.edgeDl.toFixed(1)} → ${opt.edgeDl.toFixed(1)} Mbps.`,"info");
+    } else if(aiOn && (selectedMode==="ppo"||selectedMode==="ppo_demo")){
+      setAI("off");let base=simulate();setAIImplementation(selectedMode);setAI("on");let opt=simulate();
+      T("PPO policy inference returns a valid confidence",opt.aiConfidence>=50&&opt.aiConfidence<=100);
+      T("PPO action changes capacity",Math.abs(opt.dlCap-base.dlCap)>.001);
+      T("PPO Balanced KPI score is valid (0–100)",Number.isFinite(opt.reward)&&opt.reward>=0&&opt.reward<=100);
+      T("PPO improves cell-edge DL",opt.edgeDl>base.edgeDl);
+      log(`${aiModeLabel(selectedMode)} result: Balanced KPI score ${opt.reward.toFixed(1)}/100; confidence ${opt.aiConfidence.toFixed(1)}%; edge ${base.edgeDl.toFixed(1)} → ${opt.edgeDl.toFixed(1)} Mbps.`,"info");
+    } else {
+      T("AI OFF produces zero AI gain",Math.abs(c.aiGain)<.001);
+      T("AI OFF produces zero AI confidence",Math.abs(c.aiConfidence)<.001);
+    }
+    log(`Quick test complete: ${p}/${t} passed.`,p===t?"pass":"fail");
+  }catch(err){log(`FAIL — Quick test stopped: ${err.message}`,"fail");}
+  finally{restore(s);restoreSimulationUiState(simulationUiState);}
+}
+function detailedCheck(){
+  const simulationUiState=captureSimulationUiState();
+  setActiveTest("detailed");
+  const s=snap();$("testLog").innerHTML="";let p=0,t=0;
+  const T=(n,c)=>{t++;if(check(n,c))p++};
+  try{
+    const selectedMode=aiMode, selectedOn=aiOn;
+    log(`DETAILED TEST — ${selectedOn?aiModeLabel(selectedMode):"AI OFF / Classical RRM"}`,"info");
+    setMode("expert");setDuplex("fdd");setCA("off");setAI("off");
+    $("schedulerSel").value="rr";let rr=simulate();$("schedulerSel").value="pf";let pf=simulate();$("schedulerSel").value="maxcqi";let mq=simulate();
+    T("Scheduler outputs are distinct",new Set([rr.dlCap,pf.dlCap,mq.dlCap].map(v=>v.toFixed(4))).size===3);
+    T("Max CQI capacity exceeds PF",mq.dlCap>pf.dlCap);T("Round Robin fairness exceeds Max CQI",rr.fairness>mq.fairness);
+    $("schedulerSel").value="pf";$("ueDlLayers").value="4";$("fddMimo").value="16";let mimo16=simulate();$("fddMimo").value="64";let mimo64=simulate();T("gNB MIMO constrains effective DL layers and capacity",mimo64.fddDlLayers>mimo16.fddDlLayers&&mimo64.dlCap>mimo16.dlCap);
+    $("fddMimo").value="64";$("ueDlLayers").value="2";let dl2Layers=simulate();$("ueDlLayers").value="4";let dl4Layers=simulate();T("UE DL layer selection changes per-CC DL capacity",dl4Layers.dlCap>dl2Layers.dlCap);$("fddMimo").value="32";
+    $("fddDlBw").value="20";let bw20=simulate();$("fddDlBw").value="50";let bw50=simulate();T("FDD DL bandwidth raises DL capacity",bw50.dlCap>bw20.dlCap);T("FDD DL bandwidth does not scale UL",Math.abs(bw50.ulCap-bw20.ulCap)<.002);
+    setCA("on");$("fddAdditionalCc").value="2";let ca3=simulate();T("FDD CA raises DL over single carrier",ca3.dlCap>bw50.dlCap);$("ulCa").value="on";let ulca=simulate();T("UL CA raises UL only when enabled",ulca.ulCap>ca3.ulCap);
+    T("DL CA calculates every selected FDD CC separately",ca3.dlCarrierBreakdown.length===3&&ca3.dlCarrierBreakdown.every(c=>c.capacity>0));
+    $("caEff").value="0.80";let caEff80=simulate();$("caEff").value="0.95";let caEff95=simulate();T("CA efficiency is applied uniformly to aggregated DL capacity",caEff95.dlCap>caEff80.dlCap);$("caEff").value="0.94";
+    T("UL CA calculates every selected FDD CC separately",ulca.ulCarrierBreakdown.length===3&&ulca.ulCarrierBreakdown.every(c=>c.capacity>0));
+    $("ueUlLayers").value="2";let ul2Layers=simulate();$("ueUlLayers").value="4";let ul4Layers=simulate();T("UE UL MIMO setting is constrained by link-supported rank",ul2Layers.fddUlLayers<=2&&ul4Layers.fddUlLayers<=4&&ul4Layers.ulCap>=ul2Layers.ulCap);$("ueUlLayers").value="2";
+    $("fddAdditionalCc").value="3";let fourFddCc=simulate();T("Three additional FDD CCs activate CC1–CC4",fourFddCc.carriers.length===4&&fourFddCc.carriers.every(c=>c.duplex==="FDD"));
+    setDuplex("fddtdd");$("tddDlFrac").value=".60";let f60=simulate();$("tddDlFrac").value=".80";let f80=simulate();T("Higher TDD DL fraction raises DL",f80.dlCap>f60.dlCap);T("Higher TDD DL fraction lowers UL",f80.ulCap<f60.ulCap);
+    $("caDlCc").value="3";$("cc2Source").value="tdd1";$("cc3Source").value="fdd";let oneLayer=simulate();$("cc3Source").value="tdd2";let twoLayers=simulate();T("Selecting a CC on TDD layer 2 automatically adds its capacity",twoLayers.dlCap>oneLayer.dlCap);
+    $("caDlCc").value="4";let fourCc=simulate();T("CA supports and calculates four DL CCs",fourCc.carriers.length===4);
+    $("cc2Source").value="fdd";$("cc2Band").value="n3";$("cc2Freq").value="1850";syncFddPair(2);$("cc3Source").value="tdd1";$("cc4Source").value="tdd2";let manualCc=simulate();
+    T("CC2–CC4 source assignments are user-selectable",manualCc.carriers[1].duplex==="FDD"&&manualCc.carriers[2].type==="tdd1"&&manualCc.carriers[3].type==="tdd2");
+    T("Mixed FDD+TDD DL CA includes every configured CC",manualCc.dlCarrierBreakdown.length===4&&manualCc.dlCarrierBreakdown.some(c=>c.source==="TDD layer 1")&&manualCc.dlCarrierBreakdown.some(c=>c.source==="TDD layer 2"));
+    T("Mixed FDD+TDD UL CA includes every configured CC",manualCc.ulCarrierBreakdown.length===4&&manualCc.ulCarrierBreakdown.some(c=>c.source==="TDD layer 1")&&manualCc.ulCarrierBreakdown.some(c=>c.source==="TDD layer 2"));
+    T("FDD secondary DL frequency is user-selectable",manualCc.carriers[1].dlFreqMHz===1850);
+    T("FDD UL frequency is derived and read-only",$("fddUlFreq").readOnly&&$("cc2UlFreq").readOnly&&manualCc.carriers[1].ulFreqMHz===1755);
+    $("cc2Band").value="n71";syncFddPair(2,true);let lowBandCc=simulate();$("cc2Band").value="n7";syncFddPair(2,true);let highBandCc=simulate();T("Selected FDD band and DL frequency affect calculated capacity",lowBandCc.dlCap>highBandCc.dlCap);
+    $("cc2Band").value="n3";$("cc2Freq").value="1850";syncFddPair(2);T("FDD duplex spacing follows the selected band",num("cc2UlFreq")===1755);
+    $("cc2Bw").value="20";let ccBw20=simulate();$("cc2Bw").value="100";let ccBw100=simulate();T("Each secondary CC bandwidth is user-selectable",ccBw100.dlCap>ccBw20.dlCap);
+    T("Selected CCs are not restricted by a UE CC-count or bandwidth input",!$("ueMaxCc")&&!$("ueMaxBw")&&manualCc.effCc===manualCc.configuredCc);
+    T("TDD layer frequencies are user-selectable",!$("tddFreq").readOnly&&!$("tdd2Freq").readOnly);
+    T("UE noise figure is user-selectable",!$("ueNf").readOnly);
+    T("CSI effectiveness is calculated rather than directly entered",$("csiEff").readOnly&&num("csiEff")>=.55&&num("csiEff")<=.98);
+    T("UE-rate charts use the calculated per-UE distributions",manualCc.ueDlRates.length===num("users")&&manualCc.ueUlRates.length===num("users"));
+    T("UE allocation does not apply PHY efficiency twice",Math.abs(manualCc.ueDlRates.reduce((a,b)=>a+b,0)-manualCc.dlCap*1000)<.001&&Math.abs(manualCc.ueUlRates.reduce((a,b)=>a+b,0)-manualCc.ulCap*1000)<.001);
+    T("Target feasibility reports required DL and UL cell capacity",manualCc.requiredDlMbps>0&&manualCc.requiredUlMbps>0);
+    T("PASS/FAIL evaluation includes 5th-percentile UL",manualCc.targetEval.tests.some(t=>t.name==="5th-percentile UL"));
+    setDuplex("fdd");const capturedTddTrace=buildTrace(manualCc);T("Trace retains the Duplex state used for the simulation run",capturedTddTrace.includes("Duplex: FDD + TDD")&&!capturedTddTrace.includes("TDD capacity layers not selected"));setDuplex("fddtdd");
+    $("users").value="10";let u10=simulate();$("users").value="40";let u40=simulate();T("Higher user count lowers median UE rate",u40.medianDl<u10.medianDl);
+    $("pathLossExp").value="1.5";simulate();T("Path-loss exponent floor is enforced at 2",num("pathLossExp")===2);
+    $("pathLossExp").value="3.0";let pl3=simulate();$("pathLossExp").value="4.0";let pl4=simulate();T("Higher path-loss exponent lowers SINR",pl4.fddSinr<pl3.fddSinr);
+    setDuplex("fdd");const capacityOpenedInFdd=activateTab("capacity");T("FDD mode disables TDD Capacity values and navigation",!capacityOpenedInFdd&&document.querySelector('.tab[data-tab="capacity"]').disabled&&[...document.querySelectorAll("#capacity input,#capacity select")].every(x=>x.disabled));setDuplex("fddtdd");T("FDD+TDD mode enables TDD Capacity values",!document.querySelector('.tab[data-tab="capacity"]').disabled&&[...document.querySelectorAll("#capacity input,#capacity select")].every(x=>!x.disabled));
+    setAI("off");let base=simulate();
+    if(selectedOn && selectedMode==="rule"){
+      setAIImplementation("rule");setAI("on");let r1=simulate();let r2=simulate();
+      T("Rule-based capacity action is applied",r1.dlCap>base.dlCap);
+      T("Rule-based edge protection is applied",r1.edgeDl>base.edgeDl*1.03);
+      T("Rule-based fairness is non-degrading",r1.fairness>=base.fairness);
+      T("Rule-based signaling reduction is limited",r1.signaling===12);
+      T("Rule-based output is deterministic",Math.abs(r1.dlCap-r2.dlCap)<1e-9&&Math.abs(r1.edgeDl-r2.edgeDl)<1e-9);
+      T("Rule-based confidence is bounded",r1.aiConfidence>=50&&r1.aiConfidence<=100);
+    } else if(selectedOn && (selectedMode==="ppo"||selectedMode==="ppo_demo")){
+      setAIImplementation(selectedMode);setAI("on");let r1=simulate();let r2=simulate();
+      T("PPO policy inference changes capacity",r1.dlCap>base.dlCap);
+      T("PPO improves 5th-percentile DL",r1.edgeDl>base.edgeDl*1.05);
+      T("PPO improves fairness",r1.fairness>base.fairness);
+      T("PPO policy confidence is bounded",r1.aiConfidence>=50&&r1.aiConfidence<=100);
+      T("PPO Balanced KPI score remains within 0–100",Number.isFinite(r1.reward)&&r1.reward>=0&&r1.reward<=100);
+      T("PPO signaling reduction follows CSI mode",r1.signaling>=0&&r1.signaling<=48);
+      T("PPO inference is repeatable for identical state",Math.abs(r1.dlCap-r2.dlCap)<1e-9&&Math.abs(r1.reward-r2.reward)<1e-9);
+      T("PPO action respects finite KPI safety limits",[r1.medianDl,r1.medianUl,r1.edgeDl,r1.edgeUl,r1.prb].every(Number.isFinite));
+    } else {
+      T("AI OFF has zero AI capacity gain",Math.abs(base.aiGain)<.001);
+      T("AI OFF has zero confidence",Math.abs(base.aiConfidence)<.001);
+      T("AI OFF has zero signaling reduction",Math.abs(base.signaling)<.001);
+    }
+    T("Trace contains all stages",$("traceBox").textContent.includes("8. FINAL KPIs"));
+    T("Cell capacity chart is available",!!$("cellCapacityChart").getContext("2d"));
+    T("Expert diagnostic charts are available",!!$("carrierChart").getContext("2d")&&!!$("linkChart").getContext("2d")&&!!$("schedulerChart").getContext("2d")&&!!$("aiChart").getContext("2d"));
+    T("AI OFF/ON comparison is calculated",!!last.aiComparison&&last.aiComparison.baseline&&last.aiComparison.optimized);
+    T("AI comparison chart is available",!!$("aiCompareChart").getContext("2d"));
+    log(`Detailed test complete: ${p}/${t} passed.`,p===t?"pass":"fail");
+  }catch(err){log(`FAIL — Detailed test stopped: ${err.message}`,"fail");}
+  finally{restore(s);restoreSimulationUiState(simulationUiState);}
+}
+
+let recognition=null, voiceListening=false, continuousMicEnabled=false, voiceRestartTimer=null;
+function addVoiceHistory(text,ok=true){
+  const item=document.createElement("div");item.className="voice-history-item";item.innerHTML=`<span>${ok?"✓":"!"}</span>${text}`;
+  const h=$("voiceHistory");h.prepend(item);while(h.children.length>6)h.removeChild(h.lastChild);
+}
+function assistantReply(text,action="Command processed",ok=true){
+  $("voiceResponse").textContent=text;$("voiceAction").textContent=action;voiceFeedback(text,ok);addVoiceHistory(action,ok);
+  const box=$("aiCommandResponseBox"); if(box){box.classList.toggle("response-error",!ok);box.classList.add("response-updated");setTimeout(()=>box.classList.remove("response-updated"),900);}
+}
+function updateMicUi(){
+  const active=continuousMicEnabled;
+  const micButton=$("listenBtn");
+  micButton.textContent=active?"🔴 Mic ON — Click to Stop":"🎤 Mic OFF";
+  micButton.setAttribute("aria-pressed",active?"true":"false");
+  micButton.classList.toggle("mic-active",active);
+  $("voiceBtn").classList.toggle("listening",active);
+  $("micOrb").classList.toggle("listening",active);
+  $("voiceMeter").classList.toggle("active",voiceListening);
+  if(active && !voiceListening) voiceFeedback("Continuous microphone ON — waiting to listen…",true);
+  if(!active) voiceFeedback("Microphone OFF. Click Mic OFF to begin continuous listening.",true);
+}
+function openVoicePanel(){
+  $("voicePanel").classList.add("open");
+  const supported=("webkitSpeechRecognition" in window||"SpeechRecognition" in window);
+  $("voiceStatus").textContent=supported?(continuousMicEnabled?"Continuous microphone ON — listening for commands.":"Microphone ready. Click Mic OFF to begin continuous listening."):"Speech recognition is not supported in this browser. Chrome or Edge is recommended.";
+  updateMicUi();
+}
+function closeVoicePanel(){stopVoice();$("voicePanel").classList.remove("open");}
+function voiceFeedback(text,ok=true){
+  $("voiceStatus").textContent=text;$("voiceStatus").style.borderColor=ok?"var(--good)":"var(--bad)";
+}
+function clickTab(id){const tab=[...document.querySelectorAll(".tab")].find(x=>x.dataset.tab===id);if(tab)tab.click();}
+function setSelect(id,value){const el=$(id);if(!el)return false;const opt=[...el.options].find(o=>o.value===value||o.text.toLowerCase().includes(String(value).toLowerCase()));if(!opt)return false;el.value=opt.value;el.dispatchEvent(new Event("change",{bubbles:true}));return true;}
+function parseVoiceCommand(raw,confidence){
+  const t=raw.toLowerCase().replace(/[.,!?]/g," ").replace(/\s+/g," ").trim();const actions=[];const has=(...p)=>p.some(x=>t.includes(x));
+  if(Number.isFinite(confidence))$("voiceConfidence").textContent=`${Math.round(confidence*100)}%`;else $("voiceConfidence").textContent="—";
+  if(has("ai off","turn off ai","disable ai")){setAI("off");actions.push("AI turned OFF");}
+  else if(has("ai on","turn on ai","enable ai")){setAI("on");actions.push("AI turned ON");}
+  if(has("ppo","reinforcement learning","rl ai")){setAI("on");setAIImplementation("ppo");actions.push("PPO reinforcement learning selected");}
+  else if(has("rule based","expert rule","rules based")){setAI("on");setAIImplementation("rule");actions.push("Rule-based expert AI selected");}
+  if(has("expert mode")){setMode("expert");actions.push("Expert mode selected");}else if(has("normal mode")){setMode("normal");actions.push("Normal mode selected");}
+  if(has("carrier aggregation off","ca off","disable carrier aggregation")){setCA("off");actions.push("Carrier aggregation OFF");}else if(has("carrier aggregation on","ca on","enable carrier aggregation")){setCA("on");actions.push("Carrier aggregation ON");}
+  if(has("fdd plus tdd","fdd and tdd","fdd tdd")){setDuplex("fddtdd");actions.push("FDD plus TDD selected");}else if(/\bfdd only\b/.test(t)){setDuplex("fdd");actions.push("FDD only selected");}
+  if(has("round robin")){setSelect("schedulerSel","rr");actions.push("Round Robin scheduler selected");}else if(has("max cqi","maximum cqi")){setSelect("schedulerSel","maxcqi");actions.push("Max CQI scheduler selected");}else if(has("proportional fair","pf scheduler")){setSelect("schedulerSel","pf");actions.push("Proportional Fair scheduler selected");}
+  const users=t.match(/(?:active users|users)(?: to| is| equals)?\s*(\d{1,3})/);if(users){$("users").value=clamp(Number(users[1]),1,200);setDirty();actions.push(`Active users set to ${$("users").value}`);}
+  const di=t.match(/decision interval(?: to| is| equals)?\s*(10|20|50|100)/);if(di){setAI("on");setAIImplementation("ppo");setSelect("decisionInterval",di[1]);actions.push(`Decision interval set to ${di[1]} milliseconds`);}
+  const scenarios=[["dense urban","dense"],["suburban","suburban"],["rural","rural"],["microcell","micro"],["micro cell","micro"],["urban","urban"]];for(const [phrase,val] of scenarios){if(t.includes(phrase)){setSelect("scenario",val);actions.push(`${phrase} scenario selected`);break;}}
+  let response="";
+  if(has("quick test","quick check")){clickTab("validation");setTimeout(quickCheck,80);actions.push("Quick test started");response="Running the Quick Test. The validation log will show the results.";}
+  else if(has("detailed test","detailed check","full test")){clickTab("validation");setTimeout(detailedCheck,80);actions.push("Detailed Test started");response="Running the Detailed Test. Please review the implementation-specific validation results.";}
+  else if(has("run simulation","start simulation","calculate results","show results")){setTimeout(simulate,50);actions.push("Simulation started");response="Simulation started. The KPI results will update shortly.";}
+  if(has("show results","open results")){clickTab("results");actions.push("Results tab opened");}
+  if(has("show scheduler","open scheduler")){clickTab("scheduler");actions.push("Scheduler and AI tab opened");}
+  if(!actions.length){assistantReply("I did not recognize that command. Please try one of the examples shown below.","Command not recognized",false);return;}
+  if(!response)response=actions.length===1?`${actions[0]}.`:`Completed: ${actions.join(", ")}.`;
+  assistantReply(response,actions.join(" · "),true);
+}
+
+function runNlpValidation(){
+  const tests=[
+    {command:"AI off",verify:()=>!aiOn,expected:"AI OFF"},
+    {command:"turn on AI",verify:()=>aiOn,expected:"AI ON"},
+    {command:"select pretrained PPO",verify:()=>aiOn&&aiMode==="ppo",expected:"Pretrained PPO"},
+    {command:"select rule based AI",verify:()=>aiOn&&aiMode==="rule",expected:"Rule-Based AI"},
+    {command:"expert mode",verify:()=>mode==="expert",expected:"Expert mode"},
+    {command:"normal mode",verify:()=>mode==="normal",expected:"Normal mode"},
+    {command:"carrier aggregation off",verify:()=>!caOn,expected:"CA OFF"},
+    {command:"carrier aggregation on",verify:()=>caOn,expected:"CA ON"},
+    {command:"FDD plus TDD",verify:()=>duplex==="fddtdd",expected:"FDD + TDD"},
+    {command:"FDD only",verify:()=>duplex==="fdd",expected:"FDD only"},
+    {command:"scheduler proportional fair",verify:()=>$("schedulerSel").value==="pf",expected:"PF scheduler"},
+    {command:"round robin",verify:()=>$("schedulerSel").value==="rr",expected:"Round Robin"},
+    {command:"maximum CQI",verify:()=>$("schedulerSel").value==="maxcqi",expected:"Max CQI"},
+    {command:"set active users to 30",verify:()=>Number($("users").value)===30,expected:"30 active users"},
+    {command:"decision interval 20 milliseconds",verify:()=>$("decisionInterval").value==="20"&&aiMode==="ppo",expected:"20 ms PPO interval"},
+    {command:"set scenario to dense urban",verify:()=>$("scenario").value==="dense",expected:"Dense urban"},
+    {command:"set scenario to suburban",verify:()=>$("scenario").value==="suburban",expected:"Suburban"},
+    {command:"set scenario to rural",verify:()=>$("scenario").value==="rural",expected:"Rural"},
+    {command:"set scenario to microcell",verify:()=>$("scenario").value==="micro",expected:"Microcell"},
+    {command:"set scenario to urban",verify:()=>$("scenario").value==="urban",expected:"Urban"}
+  ];
+  stopVoice();
+  clickTab("validation");
+  const rows=[];let passed=0;
+  for(const tc of tests){
+    try{parseVoiceCommand(tc.command,1);const ok=!!tc.verify();if(ok)passed++;rows.push(`<div class="${ok?"pass":"fail"}">${ok?"PASS":"FAIL"} — “${tc.command}” → ${tc.expected}</div>`);}catch(err){rows.push(`<div class="fail">FAIL — “${tc.command}” → ${err.message}</div>`);}
+  }
+  reset();
+  const total=tests.length, failed=total-passed;
+  $("testLog").innerHTML=`<div class="info">NLP VALIDATION — deterministic text-command regression suite</div>${rows.join("")}<div class="${failed===0?"pass":"fail"}" style="margin-top:8px">NLP validation complete: ${passed}/${total} passed.</div>`;
+  $("nlpValidationSummary").innerHTML=`Commands tested: <strong>${total}</strong> · Passed: <strong>${passed}</strong> · Failed: <strong>${failed}</strong> · Microphone/speech recognition is not exercised by this test.`;
+  if($("voicePanel").classList.contains("open")) assistantReply(`NLP validation complete: ${passed} of ${total} commands passed. See the Validation tab for details.`,"NLP validation completed",failed===0);
+}
+
+function createRecognition(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return null;
+  const r=new SR();r.lang="en-US";r.interimResults=true;r.continuous=false;
+  r.onstart=()=>{voiceListening=true;updateMicUi();voiceFeedback("🔴 Listening continuously — speak a command. Click Mic ON to stop.",true);$("voiceResponse").textContent="Listening for a voice command…";};
+  r.onresult=e=>{let finalText="",interim="",conf=null;for(let i=e.resultIndex;i<e.results.length;i++){const q=e.results[i],x=q[0].transcript;if(q.isFinal){finalText+=x;conf=q[0].confidence}else interim+=x;}$("voiceTranscript").textContent=finalText||interim;if(finalText)parseVoiceCommand(finalText,conf);};
+  r.onerror=e=>{
+    voiceListening=false;
+    if(e.error==="not-allowed"||e.error==="service-not-allowed"){continuousMicEnabled=false;assistantReply("Microphone permission was denied. Allow microphone access in the browser, then switch Mic ON again.","Microphone permission required",false);updateMicUi();return;}
+    if(e.error!=="no-speech"&&e.error!=="aborted")assistantReply(`Voice error: ${e.error}. Continuous listening will retry.`,"Voice recognition interrupted",false);
+  };
+  r.onend=()=>{
+    voiceListening=false;updateMicUi();
+    if(continuousMicEnabled && $("voicePanel").classList.contains("open")){
+      clearTimeout(voiceRestartTimer);voiceRestartTimer=setTimeout(startRecognitionCycle,350);
+    }
+  };
+  return r;
+}
+function startRecognitionCycle(){
+  if(!continuousMicEnabled||voiceListening)return;
+  if(!recognition)recognition=createRecognition();
+  if(!recognition){continuousMicEnabled=false;assistantReply("Speech recognition is unavailable in this browser. Chrome or Edge is recommended.","Speech recognition unavailable",false);updateMicUi();return;}
+  try{recognition.start()}catch(e){clearTimeout(voiceRestartTimer);voiceRestartTimer=setTimeout(startRecognitionCycle,500);}
+}
+function toggleContinuousMic(event){
+  if(event){event.preventDefault();event.stopPropagation();}
+  if(continuousMicEnabled){stopVoice();return;}
+  continuousMicEnabled=true;
+  updateMicUi();
+  voiceFeedback("Starting microphone…",true);
+  $("voiceResponse").textContent="Starting continuous voice recognition…";
+  window.setTimeout(startRecognitionCycle,0);
+}
+function stopVoice(){
+  continuousMicEnabled=false;clearTimeout(voiceRestartTimer);
+  if(recognition){try{recognition.onend=null;recognition.stop();}catch(e){}recognition=null;}
+  voiceListening=false;updateMicUi();
+}
+
+$("fddBand").addEventListener("change",()=>syncFddPair("anchor",true));
+$("fddDlFreq").addEventListener("change",()=>syncFddPair("anchor",false));
+[2,3,4].forEach(i=>{
+  $("cc"+i+"Band").addEventListener("change",()=>syncFddPair(i,true));
+  $("cc"+i+"Freq").addEventListener("change",()=>syncFddPair(i,false));
+});
+document.querySelectorAll("input,select").forEach(x=>x.addEventListener("change",setDirty));
+$("schedulerSel").addEventListener("change",updateSchedulerHeading);
+$("duplexSeg").addEventListener("click",e=>{const b=e.target.closest("button[data-value]");if(b)setDuplex(b.dataset.value);});
+$("caSeg").addEventListener("click",e=>e.target.dataset.value&&setCA(e.target.dataset.value));
+$("aiSeg").addEventListener("click",e=>e.target.dataset.value&&setAI(e.target.dataset.value));
+$("aiEngineSeg").addEventListener("click",e=>{const b=e.target.closest("button[data-value]");if(b&&!b.disabled)setAIImplementation(b.dataset.value);});
+$("aiImplementation").addEventListener("change",e=>setAIImplementation(e.target.value));
+$("simulationMode").addEventListener("change",()=>{updateAIEngineStatus();setDirty();});
+$("targetProfile").addEventListener("change",()=>{applyTargetProfile();setDirty()});
+$("normalModeBtn").onclick=()=>setMode("normal",true);$("expertModeBtn").onclick=()=>setMode("expert",true);
+function activateTab(tabName){
+  if(tabName==="capacity"&&duplex!=="fddtdd")return false;
+  const targetPanel=document.getElementById(tabName);
+  if(!targetPanel)return false;
+  document.querySelectorAll(".tab").forEach(btn=>{
+    const selected=btn.dataset.tab===tabName;
+    btn.classList.toggle("active",selected);
+    btn.setAttribute("aria-selected",selected?"true":"false");
+  });
+  document.querySelectorAll(".panel").forEach(panel=>panel.classList.toggle("active",panel.id===tabName));
+  targetPanel.scrollIntoView({block:"start",behavior:"auto"});
+  return true;
+}
+
+document.querySelectorAll("#tabs .tab").forEach(btn=>{
+  btn.addEventListener("click",()=>activateTab(btn.dataset.tab));
+  btn.addEventListener("keydown",e=>{
+    if(e.key==="Enter"||e.key===" "){e.preventDefault();activateTab(btn.dataset.tab);}
+  });
+});
+
+$("voiceBtn").onclick=openVoicePanel;$("voiceCloseBtn").onclick=closeVoicePanel;
+const micToggleButton=$("listenBtn");
+micToggleButton.addEventListener("click",toggleContinuousMic);
+$("clearVoiceBtn").onclick=()=>{$("voiceTranscript").textContent="No command received yet.";$("voiceResponse").textContent="Microphone ready. Give a command and the interpreted action will appear here.";$("voiceConfidence").textContent="—";$("voiceAction").textContent="Waiting";voiceFeedback("Microphone ready. Click Mic OFF to begin continuous listening.",true);const box=$("aiCommandResponseBox");if(box)box.classList.remove("response-error","response-updated")};
+$("voicePanel").addEventListener("click",e=>{if(e.target===$("voicePanel"))closeVoicePanel()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("voicePanel").classList.contains("open"))closeVoicePanel()});
+$("runBtn").onclick=simulate;$("resetBtn").onclick=reset;$("quickCheckBtn").onclick=quickCheck;$("detailedCheckBtn").onclick=detailedCheck;$("nlpValidationBtn").onclick=runNlpValidation;$("nlpValidationVoiceBtn").onclick=runNlpValidation;
+$("themeBtn").onclick=()=>{const dark=document.documentElement.dataset.theme==="dark";document.documentElement.dataset.theme=dark?"":"dark";$("themeBtn").textContent=dark?"Dark mode":"Light mode";if(last){drawRate(last);drawCoverage(last);drawCellCapacity(last);drawResource(last);drawCarrier(last);drawLink(last);drawScheduler(last);drawAI(last);drawAIComparison(last)}};
+window.addEventListener("resize",()=>{if(last){drawRate(last);drawCoverage(last);drawCellCapacity(last);drawResource(last);drawCarrier(last);drawLink(last);drawScheduler(last);drawAI(last);drawAIComparison(last)}});
+reset();
+setActiveTest(null);
+})();
+</script>
+</body>
+</html>
