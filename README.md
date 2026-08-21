@@ -6,4 +6,4 @@
 
 RANsliceOpt AI — Soft RAN Slicing optimization using RL PPO with Multi-Step MDP.
 
-**Current browser version: v14**
+**Current browser version: v15 FINAL**
