@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RANsliceOpt AI — PPO MDP Soft Slicing</title>
+<style>
+:root{
+  --bg:#07111f; --panel:#0d1b2a; --panel2:#12263a; --text:#eaf2ff; --muted:#9fb3c8;
+  --accent:#4aa3ff; --good:#33d17a; --warn:#ffb020; --bad:#ff5d73; --line:#24415f;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#06101d,#0b1726);color:var(--text)}
+header{padding:20px 24px;border-bottom:1px solid var(--line);background:rgba(5,15,28,.96);position:sticky;top:0;z-index:5}
+h1{margin:0;font-size:22px}
+.subtitle{color:var(--muted);font-size:13px;margin-top:4px}
+.wrap{max-width:1440px;margin:auto;padding:18px}
+.grid{display:grid;grid-template-columns:360px 1fr;gap:18px}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+.panel{background:rgba(13,27,42,.96);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.panel h2{font-size:16px;margin:0 0 12px}
+.row{display:grid;grid-template-columns:1fr 120px;align-items:center;gap:10px;margin:10px 0}
+label{font-size:13px;color:#cfe0f5}
+input,select,button{width:100%;border-radius:9px;border:1px solid #315375;background:#0a1726;color:var(--text);padding:9px 10px}
+input[type=range]{padding:0}
+button{
+  cursor:pointer;
+  background:#58c9c3;
+  border-color:#86e1dc;
+  color:#06202a;
+  font-weight:700;
+  transition:transform .08s ease,filter .08s ease,background .08s ease;
+}
+button.primary,button.good,button.warn{
+  background:#58c9c3;
+  border-color:#86e1dc;
+  color:#06202a;
+}
+button:hover{filter:brightness(1.08)}
+button:active{
+  background:#369f9a;
+  border-color:#65cbc6;
+  transform:translateY(1px);
+}
+button:disabled{opacity:.5;cursor:not-allowed}
+.stale{opacity:.58;filter:saturate(.65)}
+.stale-note{display:none;margin-top:10px;padding:10px;border-radius:10px;background:#3a2d08;border:1px solid #8b6c18;color:#ffe59a;font-size:13px;font-weight:700}
+.stale-note.show{display:block}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.cards{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:12px;margin-bottom:14px}
+@media(max-width:1200px){.cards{grid-template-columns:repeat(2,1fr)}}
+.card{background:#10243a;border:1px solid var(--line);border-radius:12px;padding:12px}
+.card .k{font-size:12px;color:var(--muted)}
+.card .v{font-size:23px;font-weight:750;margin-top:4px}
+.split{display:grid;grid-template-columns:1.25fr .75fr;gap:14px}
+@media(max-width:1100px){.split{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px;border-bottom:1px solid #203b57;text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:#b9cae0;font-weight:650}
+.bar{height:10px;border-radius:999px;background:#18334f;overflow:hidden}
+.bar span{display:block;height:100%;background:linear-gradient(90deg,#2f80ed,#33d17a)}
+.small{font-size:12px;color:var(--muted)}
+.status{padding:10px;border-radius:10px;background:#0a1726;border:1px solid #274461;margin-top:10px;font-size:13px}
+.log{height:180px;overflow:auto;background:#07111f;border:1px solid #213c58;padding:10px;border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;white-space:pre-wrap}
+.badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px;border:1px solid #355c82;color:#cfe0f5;margin-right:4px}
+canvas{width:100%;height:240px;background:#091525;border-radius:10px;border:1px solid #203f60}
+.comparegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:1000px){.comparegrid{grid-template-columns:1fr}}
+.metricbox{background:#0b1a2a;border:1px solid #24415f;border-radius:12px;padding:12px}
+.metricbox h3{margin:0 0 8px;font-size:14px}
+.gain{font-weight:750}
+.legend{font-size:12px;color:#b7c9de;margin-bottom:8px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 5px 0 12px}
+.dot:first-child{margin-left:0}
+hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+
+.range-wrap{width:100%;min-width:0}
+.range-wrap input[type=range]{display:block;width:100%}
+.range-scale{display:grid;grid-template-columns:1fr auto 1fr;gap:4px;margin-top:3px;
+  color:#9fb3c8;font-size:10px;line-height:1.15}
+.range-scale .cur{color:#eaf2ff;font-weight:700;text-align:center}
+.range-scale .max{text-align:right}
+
+
+.alloc-scale{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  margin-top:6px;
+  color:#9fb3c8;
+  font-size:10px;
+  line-height:1.1;
+}
+.alloc-scale span{text-align:center}
+.alloc-scale span:first-child{text-align:left}
+.alloc-scale span:last-child{text-align:right}
+.alloc-axis-label{
+  margin-top:3px;
+  color:#9fb3c8;
+  font-size:11px;
+  text-align:center;
+}
+
+</style>
+</head>
+<body>
+<header>
+  <h1>RANsliceOpt AI v15 — Soft RAN Slicing with PPO + Multi-Step MDP</h1>
+  <div class="subtitle">Browser prototype for eMBB, URLLC and mIoT/eMTC resource optimization with SLA protection.</div>
+</header>
+<div class="wrap">
+<div class="grid">
+  <aside class="panel">
+    <h2>Cell & Traffic Configuration</h2>
+    <div class="row"><label>System bandwidth (MHz)</label><select id="bw"><option>50</option><option selected>100</option><option>200</option></select></div>
+    <div class="row"><label>Total PRBs</label><input id="prbs" type="number" value="273" min="50" max="1000"></div>
+    <div class="row"><label>Simulation steps</label><input id="steps" type="number" value="120" min="10" max="1000"></div>
+    <div class="row"><label>Decision interval (ms)</label><input id="interval" type="number" value="10" min="1" max="1000"></div>
+    <hr>
+    <h2>Slice Demand</h2>
+    <div class="row"><label>eMBB load</label><div class="range-wrap"><input id="loadEmb" type="range" min="0.2" max="1.5" value="0.9" step="0.05"><div class="range-scale"><span>0.20</span><span class="cur" id="loadEmbVal">0.90</span><span class="max">1.50</span></div></div></div>
+    <div class="row"><label>URLLC load</label><div class="range-wrap"><input id="loadUrl" type="range" min="0.05" max="1.2" value="0.45" step="0.05"><div class="range-scale"><span>0.05</span><span class="cur" id="loadUrlVal">0.45</span><span class="max">1.20</span></div></div></div>
+    <div class="row"><label>mIoT/eMTC load</label><div class="range-wrap"><input id="loadIot" type="range" min="0.05" max="1.2" value="0.35" step="0.05"><div class="range-scale"><span>0.05</span><span class="cur" id="loadIotVal">0.35</span><span class="max">1.20</span></div></div></div>
+    <hr>
+    <h2>SLA Constraints</h2>
+    <div class="row"><label>URLLC latency target (ms)</label><input id="latTarget" type="number" value="2" min="0.5" step="0.5"></div>
+    <div class="row"><label>URLLC min PRB share (%)</label><input id="urlMin" type="number" value="20" min="5" max="80"></div>
+    <div class="row"><label>eMBB min throughput index</label><input id="embMin" type="number" value="0.55" min="0.1" max="1.0" step="0.05"></div>
+    <div class="row"><label>mIoT min service ratio</label><input id="iotMin" type="number" value="0.75" min="0.1" max="1.0" step="0.05"></div>
+    <hr>
+    <h2>PPO / MDP</h2>
+    <div class="row"><label>Gamma</label><input id="gamma" type="number" value="0.97" min="0.5" max="0.999" step="0.01"></div>
+    <div class="row"><label>PPO clip ε</label><input id="clip" type="number" value="0.2" min="0.05" max="0.5" step="0.05"></div>
+    <div class="row"><label>Learning rate</label><input id="lr" type="number" value="0.035" min="0.001" max="0.2" step="0.005"></div>
+    <div class="row"><label>Exploration temperature</label><input id="temp" type="number" value="0.8" min="0.1" max="2" step="0.1"></div>
+    <div class="btns">
+      <button id="run" class="primary">Run PPO-MDP</button>
+      <button id="stepBtn">Run Single Step</button>
+      <button id="reset">Reset</button>
+      <button id="baseline" class="good">Rule Baseline</button>
+    </div>
+    <div id="modeBadge" class="status"><strong>Mode:</strong> READY</div>
+    <div id="status" class="status">Ready. PPO uses a 2-hidden-layer actor/critic, rollout advantages, same-state importance ratios and clipped updates.</div>
+    <div id="staleNote" class="stale-note">Configuration changed. The displayed outputs are from the previous settings. Click Run PPO-MDP Again, Run Single Step Again, or Rule Baseline Again to refresh.</div>
+  </aside>
+
+  <main id="outputArea">
+    <div class="cards">
+      <div class="card"><div class="k">Reward</div><div class="v" id="reward">0.000</div></div>
+      <div class="card"><div class="k">URLLC Latency</div><div class="v" id="lat">—</div></div>
+      <div class="card"><div class="k">eMBB Throughput</div><div class="v" id="thr">—</div></div>
+      <div class="card"><div class="k">Jain Fairness</div><div class="v" id="fair">—</div></div>
+      <div class="card"><div class="k">Efficiency Index</div><div class="v" id="eff">—</div></div>
+    </div>
+
+    <div class="split">
+      <section class="panel">
+        <h2>Current Soft-Slice Allocation</h2>
+        <table>
+          <thead><tr><th>Slice</th><th>PRBs</th><th>Share</th><th>Demand</th><th>SLA</th></tr></thead>
+          <tbody>
+            <tr><td>eMBB</td><td id="pEmb">—</td><td id="sEmb">—</td><td id="dEmb">—</td><td id="slaEmb">—</td></tr>
+            <tr><td>URLLC</td><td id="pUrl">—</td><td id="sUrl">—</td><td id="dUrl">—</td><td id="slaUrl">—</td></tr>
+            <tr><td>mIoT/eMTC</td><td id="pIot">—</td><td id="sIot">—</td><td id="dIot">—</td><td id="slaIot">—</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:14px">
+          <div class="small">eMBB</div><div class="bar"><span id="bEmb" style="width:50%"></span></div>
+          <div class="small" style="margin-top:8px">URLLC</div><div class="bar"><span id="bUrl" style="width:25%"></span></div>
+          <div class="small" style="margin-top:8px">mIoT/eMTC</div><div class="bar"><span id="bIot" style="width:25%"></span></div>
+          <div class="alloc-scale" aria-label="Allocated PRB share scale">
+            <span>0%</span><span>20%</span><span>40%</span><span>60%</span><span>80%</span><span>100%</span>
+          </div>
+          <div class="alloc-axis-label">Allocated PRB Share (%)</div>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>MDP State</h2>
+        <div class="small">State vector</div>
+        <div id="stateVec" style="margin:8px 0 12px;font-family:ui-monospace,monospace;font-size:13px">—</div>
+        <span class="badge">load</span><span class="badge">latency</span><span class="badge">throughput</span><span class="badge">fairness</span><span class="badge">efficiency</span>
+        <hr>
+        <div class="small">Selected PPO action</div>
+        <div id="action" style="font-weight:700;margin-top:6px">—</div>
+        <div class="small" style="margin-top:8px">Action adjusts slice resource envelopes; deterministic scheduling remains below this layer.</div>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top:14px">
+      <h2>Reward / KPI History</h2>
+      <canvas id="chart" width="900" height="240"></canvas>
+    </section>
+
+    <section class="panel" style="margin-top:14px">
+      <h2>After-Training Results: PPO vs Rule-Based Baseline</h2>
+      <div class="small" style="margin-bottom:10px">PPO and rule-based results are independent runs using the same selected configuration and identical traffic/noise sequence. The Rule Baseline never trains or updates PPO. When available, the blue curve is the stored trained PPO policy evaluated on the same traffic. Values are averages over the final 25% of evaluation steps.</div>
+      <table>
+        <thead>
+          <tr><th>Output KPI</th><th>Without PPO / Rule-Based</th><th>With PPO</th><th>PPO Gain vs Rule-Based</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>eMBB throughput index</td><td id="cmpEmbBase">—</td><td id="cmpEmbPpo">—</td><td id="gainEmb">—</td></tr>
+          <tr><td>URLLC latency (ms)</td><td id="cmpUrlBase">—</td><td id="cmpUrlPpo">—</td><td id="gainUrl">—</td></tr>
+          <tr><td>eMTC/mIoT service ratio</td><td id="cmpIotBase">—</td><td id="cmpIotPpo">—</td><td id="gainIot">—</td></tr>
+          <tr><td>Jain fairness</td><td id="cmpFairBase">—</td><td id="cmpFairPpo">—</td><td id="gainFair">—</td></tr>
+          <tr><td>Efficiency index</td><td id="cmpEffBase">—</td><td id="cmpEffPpo">—</td><td id="gainEff">—</td></tr>
+          <tr><td>Composite reward</td><td id="cmpRBase">—</td><td id="cmpRPpo">—</td><td id="gainR">—</td></tr>
+        </tbody>
+      </table>
+      <div class="comparegrid" style="margin-top:14px">
+        <div class="metricbox">
+          <h3>eMBB Output</h3>
+          <canvas id="chartEmb" width="420" height="210"></canvas>
+        </div>
+        <div class="metricbox">
+          <h3>URLLC Output</h3>
+          <canvas id="chartUrl" width="420" height="210"></canvas>
+        </div>
+        <div class="metricbox">
+          <h3>eMTC / mIoT Output</h3>
+          <canvas id="chartIot" width="420" height="210"></canvas>
+        </div>
+      </div>
+      <div class="legend" style="margin-top:10px">
+        <span class="dot" style="background:#ffb020"></span>Without PPO
+        <span class="dot" style="background:#4aa3ff"></span>With PPO
+      </div>
+    </section>
+
+
+    <section class="panel" style="margin-top:14px">
+      <h2>PPO Training Diagnostics</h2>
+      <div class="small">Actor network: 7 inputs → 64 → 64 → 7 actions. Critic: 7 inputs → 64 → 64 → 1 value. PPO uses the same stored state-action sample for old/new probability ratio.</div>
+      <table style="margin-top:10px">
+        <tbody>
+          <tr><td>Training updates</td><td id="diagUpdates">—</td><td>Mean clip fraction</td><td id="diagClip">—</td></tr>
+          <tr><td>Mean |advantage|</td><td id="diagAdv">—</td><td>Critic loss</td><td id="diagCritic">—</td></tr>
+          <tr><td>Baseline action changes</td><td id="diagBaseActs">—</td><td>PPO action changes</td><td id="diagPpoActs">—</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section class="panel" style="margin-top:14px">
+      <h2>Execution Trace</h2>
+      <div id="log" class="log"></div>
+    </section>
+  </main>
+</div>
+</div>
+
+<script>
+
+window.addEventListener("error", function(e){
+  const s=document.getElementById("status");
+  const detail=(e && e.message ? e.message : "Unknown error") +
+    (e && e.lineno ? " (line "+e.lineno+")" : "");
+  if(s) s.textContent="Runtime error: "+detail;
+  console.error("RANsliceOpt runtime error:", e.error || e.message || e);
+});
+const $ = id => document.getElementById(id);
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+
+const actions = [
+  {name:"Hold allocation", d:[0,0,0]},
+  {name:"Shift 5% eMBB → URLLC", d:[-0.05,0.05,0]},
+  {name:"Shift 5% eMBB → mIoT", d:[-0.05,0,0.05]},
+  {name:"Shift 5% URLLC → eMBB", d:[0.05,-0.05,0]},
+  {name:"Shift 5% mIoT → eMBB", d:[0.05,0,-0.05]},
+  {name:"Shift 5% mIoT → URLLC", d:[0,-0.05,0.05]},
+  {name:"Shift 5% URLLC → mIoT", d:[0,0.05,-0.05]}
+];
+
+let shares=[0.55,0.25,0.20], kpiHistory=[], comparison={baseline:[],ppo:[]}, t=0;
+let liveActor=null, liveCritic=null, liveRnd=null, liveDiag={updates:0,clip:0,adv:0,critic:0};
+let liveBaselineShares=[0.55,0.25,0.20], liveBaseHistory=[];
+let outputsStale=false;
+
+function markOutputsStale(){
+  if(t===0 && !kpiHistory.length && !comparison.baseline.length && !comparison.ppo.length) return;
+  outputsStale=true;
+  const oa=$("outputArea"), sn=$("staleNote"), st=$("status");
+  if(oa) oa.classList.add("stale");
+  if(sn) sn.classList.add("show");
+  if(st) st.textContent="Configuration changed — rerun required. Existing outputs are stale.";
+  if($("run")) $("run").textContent="Run PPO-MDP Again";
+  if($("stepBtn")) $("stepBtn").textContent="Run Single Step Again";
+  if($("baseline")) $("baseline").textContent="Rule Baseline Again";
+}
+function clearStaleState(){
+  outputsStale=false;
+  const oa=$("outputArea"), sn=$("staleNote");
+  if(oa) oa.classList.remove("stale");
+  if(sn) sn.classList.remove("show");
+  if($("run")) $("run").textContent="Run PPO-MDP";
+  if($("stepBtn")) $("stepBtn").textContent="Run Single Step";
+  if($("baseline")) $("baseline").textContent="Rule Baseline";
+}
+
+function seededNoise(seed){
+  let s=seed>>>0;
+  return function(){ s=(1664525*s+1013904223)>>>0; return s/4294967296; }
+}
+function randnFrom(rnd){
+  let u=Math.max(rnd(),1e-9),v=Math.max(rnd(),1e-9);
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+function normalizeShares(s){
+  let x=s.map(v=>clamp(v,0.08,0.84)),sum=x.reduce((a,b)=>a+b,0);
+  return x.map(v=>v/sum);
+}
+function enforceShares(s,cfg){
+  let x=[...s];
+  if(x[1]<cfg.urlMin){
+    let d=cfg.urlMin-x[1]; x[1]=cfg.urlMin; x[0]=Math.max(0.08,x[0]-d);
+  }
+  return normalizeShares(x);
+}
+function metrics(ld,sh){
+  const embCap=sh[0]*1.55,urlCap=sh[1]*1.2,iotCap=sh[2]*1.8;
+  const emb=clamp(embCap/(ld[0]+0.22),0,1.25);
+  const lat=0.65+3.4*Math.pow(ld[1]/(urlCap+0.12),1.35);
+  const iotSrv=clamp(iotCap/(ld[2]+0.12),0,1.1);
+  const fair=clamp(1-0.52*(Math.max(...sh)-Math.min(...sh))-0.08*Math.abs(ld[0]-ld[1]),0.55,1);
+  const eff=clamp((0.55*emb+0.25*iotSrv+0.20*(1/Math.max(lat,0.5)))/1.05,0,1.2);
+  return {emb,lat,iotSrv,fair,eff};
+}
+function rewardFnCfg(m,cfg){
+  let r=0.40*clamp(m.emb,0,1)+0.25*m.fair+0.15*clamp(m.iotSrv,0,1)+0.20*clamp(m.eff,0,1);
+  let p=0;
+  if(m.lat>cfg.latTarget)p+=0.55*Math.min(2,(m.lat-cfg.latTarget)/cfg.latTarget);
+  if(m.emb<cfg.embMin)p+=0.30*(cfg.embMin-m.emb);
+  if(m.iotSrv<cfg.iotMin)p+=0.25*(cfg.iotMin-m.iotSrv);
+  return r-p;
+}
+function stateVector(ld,m){ return [ld[0],ld[1],ld[2],m.lat/5,m.emb,m.fair,m.eff]; }
+function snapshotConfig(){
+  return {
+    steps:parseInt($("steps").value),
+    loadEmb:parseFloat($("loadEmb").value),
+    loadUrl:parseFloat($("loadUrl").value),
+    loadIot:parseFloat($("loadIot").value),
+    latTarget:parseFloat($("latTarget").value),
+    urlMin:parseFloat($("urlMin").value)/100,
+    embMin:parseFloat($("embMin").value),
+    iotMin:parseFloat($("iotMin").value),
+    gamma:parseFloat($("gamma").value),
+    clip:parseFloat($("clip").value),
+    lr:parseFloat($("lr").value),
+    temp:parseFloat($("temp").value)
+  };
+}
+function loadAt(k,cfg,rnd){
+  let wave=Math.sin(k/9)*0.08;
+  return [
+    clamp(cfg.loadEmb+wave+0.04*randnFrom(rnd),0.05,1.8),
+    clamp(cfg.loadUrl-wave/2+0.03*randnFrom(rnd),0.02,1.5),
+    clamp(cfg.loadIot+0.03*randnFrom(rnd),0.02,1.5)
+  ];
+}
+function softmax(logits,temp){
+  let m=Math.max(...logits),e=logits.map(v=>Math.exp((v-m)/temp)),s=e.reduce((a,b)=>a+b,0);
+  return e.map(v=>v/s);
+}
+function sampleProb(p,rnd){
+  let r=rnd(),c=0;
+  for(let i=0;i<p.length;i++){c+=p[i];if(r<=c)return i;}
+  return p.length-1;
+}
+function argmax(a){let k=0;for(let i=1;i<a.length;i++)if(a[i]>a[k])k=i;return k;}
+
+/* ---------- Tiny self-contained MLP ---------- */
+function makeMatrix(rows,cols,rnd,scale){
+  return Array.from({length:rows},()=>Array.from({length:cols},()=> (rnd()*2-1)*scale));
+}
+function makeActor(rnd){
+  return {W1:makeMatrix(64,7,rnd,0.16),b1:Array(64).fill(0),
+          W2:makeMatrix(64,64,rnd,0.09),b2:Array(64).fill(0),
+          W3:makeMatrix(7,64,rnd,0.09),b3:Array(7).fill(0)};
+}
+function makeCritic(rnd){
+  return {W1:makeMatrix(64,7,rnd,0.16),b1:Array(64).fill(0),
+          W2:makeMatrix(64,64,rnd,0.09),b2:Array(64).fill(0),
+          W3:Array.from({length:64},()=> (rnd()*2-1)*0.09),b3:0};
+}
+function denseTanh(W,b,x){
+  let y=new Array(W.length);
+  for(let i=0;i<W.length;i++){
+    let s=b[i]; for(let j=0;j<x.length;j++)s+=W[i][j]*x[j];
+    y[i]=Math.tanh(s);
+  }
+  return y;
+}
+function actorForward(net,x,temp){
+  const h1=denseTanh(net.W1,net.b1,x),h2=denseTanh(net.W2,net.b2,h1);
+  let logits=new Array(7);
+  for(let i=0;i<7;i++){let s=net.b3[i];for(let j=0;j<64;j++)s+=net.W3[i][j]*h2[j];logits[i]=s;}
+  return {x,h1,h2,logits,probs:softmax(logits,temp)};
+}
+function criticForward(net,x){
+  const h1=denseTanh(net.W1,net.b1,x),h2=denseTanh(net.W2,net.b2,h1);
+  let v=net.b3;for(let j=0;j<64;j++)v+=net.W3[j]*h2[j];
+  return {x,h1,h2,v};
+}
+function actorUpdate(net,sample,adv,cfg){
+  const f=actorForward(net,sample.state,cfg.temp);
+  const p=Math.max(f.probs[sample.action],1e-9), ratio=p/Math.max(sample.oldProb,1e-9);
+  const clippedHigh=1+cfg.clip, clippedLow=1-cfg.clip;
+  const saturated=(adv>=0 && ratio>clippedHigh)||(adv<0 && ratio<clippedLow);
+  if(saturated)return {ratio,clipped:1};
+
+  const coeff=clamp(adv*ratio,-4,4)/cfg.temp;
+  let gz=f.probs.map((q,i)=>coeff*((i===sample.action?1:0)-q));
+
+  let gh2=Array(64).fill(0);
+  for(let j=0;j<64;j++)for(let i=0;i<7;i++)gh2[j]+=net.W3[i][j]*gz[i];
+  for(let j=0;j<64;j++)gh2[j]*=(1-f.h2[j]*f.h2[j]);
+
+  let gh1=Array(64).fill(0);
+  for(let j=0;j<64;j++)for(let i=0;i<64;i++)gh1[j]+=net.W2[i][j]*gh2[i];
+  for(let j=0;j<64;j++)gh1[j]*=(1-f.h1[j]*f.h1[j]);
+
+  const lr=cfg.lr*0.35;
+  for(let i=0;i<7;i++){for(let j=0;j<64;j++)net.W3[i][j]+=lr*gz[i]*f.h2[j];net.b3[i]+=lr*gz[i];}
+  for(let i=0;i<64;i++){for(let j=0;j<64;j++)net.W2[i][j]+=lr*gh2[i]*f.h1[j];net.b2[i]+=lr*gh2[i];}
+  for(let i=0;i<64;i++){for(let j=0;j<7;j++)net.W1[i][j]+=lr*gh1[i]*f.x[j];net.b1[i]+=lr*gh1[i];}
+  return {ratio,clipped:0};
+}
+function criticUpdate(net,state,target,cfg){
+  const f=criticForward(net,state),err=clamp(target-f.v,-4,4);
+  let gh2=Array(64);
+  for(let j=0;j<64;j++)gh2[j]=net.W3[j]*err*(1-f.h2[j]*f.h2[j]);
+
+  let gh1=Array(64).fill(0);
+  for(let j=0;j<64;j++)for(let i=0;i<64;i++)gh1[j]+=net.W2[i][j]*gh2[i];
+  for(let j=0;j<64;j++)gh1[j]*=(1-f.h1[j]*f.h1[j]);
+
+  const lr=cfg.lr*0.55;
+  for(let j=0;j<64;j++)net.W3[j]+=lr*err*f.h2[j]; net.b3+=lr*err;
+  for(let i=0;i<64;i++){for(let j=0;j<64;j++)net.W2[i][j]+=lr*gh2[i]*f.h1[j];net.b2[i]+=lr*gh2[i];}
+  for(let i=0;i<64;i++){for(let j=0;j<7;j++)net.W1[i][j]+=lr*gh1[i]*f.x[j];net.b1[i]+=lr*gh1[i];}
+  return 0.5*err*err;
+}
+
+/* ---------- PPO rollout and training ---------- */
+function collectRollout(actor,critic,cfg,seed,len){
+  let rnd=seededNoise(seed),sh=[0.55,0.25,0.20],roll=[];
+  for(let k=0;k<len;k++){
+    const ld=loadAt(k,cfg,rnd),m=metrics(ld,sh),st=stateVector(ld,m);
+    const af=actorForward(actor,st,cfg.temp),a=sampleProb(af.probs,rnd),oldProb=af.probs[a];
+    const ns=enforceShares(sh.map((v,i)=>v+actions[a].d[i]),cfg);
+    const m2=metrics(ld,ns),r=rewardFnCfg(m2,cfg),st2=stateVector(ld,m2);
+    roll.push({state:st,action:a,oldProb,reward:r,nextState:st2});
+    sh=ns;
+  }
+  return roll;
+}
+function trainPPO(cfg){
+  const initRnd=seededNoise(99173),actor=makeActor(initRnd),critic=makeCritic(initRnd);
+  let totalUpdates=0,clipSum=0,advAbsSum=0,criticLoss=0,diagN=0;
+  const rolloutLen=Math.max(24,Math.min(64,cfg.steps));
+  const iterations=Math.max(6,Math.min(12,Math.round(cfg.steps/15)));
+  for(let it=0;it<iterations;it++){
+    const roll=collectRollout(actor,critic,cfg,12345+it*137,rolloutLen);
+    let adv=Array(roll.length),ret=Array(roll.length),gae=0;
+    for(let i=roll.length-1;i>=0;i--){
+      const v=criticForward(critic,roll[i].state).v;
+      const vn=criticForward(critic,roll[i].nextState).v;
+      const delta=roll[i].reward+cfg.gamma*vn-v;
+      gae=delta+cfg.gamma*0.95*gae;
+      adv[i]=gae; ret[i]=gae+v;
+    }
+    const mean=adv.reduce((a,b)=>a+b,0)/adv.length;
+    const sd=Math.sqrt(adv.reduce((a,b)=>a+(b-mean)*(b-mean),0)/adv.length+1e-8);
+    adv=adv.map(x=>(x-mean)/sd);
+
+    for(let epoch=0;epoch<4;epoch++){
+      for(let i=0;i<roll.length;i++){
+        const d=actorUpdate(actor,roll[i],adv[i],cfg);
+        const cl=criticUpdate(critic,roll[i].state,ret[i],cfg);
+        totalUpdates++; clipSum+=d.clipped; advAbsSum+=Math.abs(adv[i]); criticLoss+=cl; diagN++;
+      }
+    }
+  }
+  return {actor,critic,diag:{
+    updates:totalUpdates,
+    clip:diagN?clipSum/diagN:0,
+    adv:diagN?advAbsSum/diagN:0,
+    critic:diagN?criticLoss/diagN:0
+  }};
+}
+
+/* ---------- Evaluation ---------- */
+function evaluateBaseline(cfg,seed){
+  let rnd=seededNoise(seed),sh=[0.55,0.25,0.20],out=[],changes=0,lastA=0;
+  for(let k=0;k<cfg.steps;k++){
+    const ld=loadAt(k,cfg,rnd),before=metrics(ld,sh);
+    let a=0;
+    if(before.lat>cfg.latTarget)a=1;
+    else if(before.iotSrv<cfg.iotMin)a=2;
+    else if(before.emb<cfg.embMin)a=4;
+    const ns=enforceShares(sh.map((v,i)=>v+actions[a].d[i]),cfg),after=metrics(ld,ns),r=rewardFnCfg(after,cfg);
+    if(k&&a!==lastA)changes++;lastA=a;sh=ns;
+    out.push({t:k+1,r,lat:after.lat,emb:after.emb,iot:after.iotSrv,fair:after.fair,eff:after.eff,shares:[...sh],action:a,ld:[...ld]});
+  }
+  out.actionChanges=changes;return out;
+}
+function evaluatePPO(actor,cfg,seed){
+  let rnd=seededNoise(seed),sh=[0.55,0.25,0.20],out=[],changes=0,lastA=0;
+  for(let k=0;k<cfg.steps;k++){
+    const ld=loadAt(k,cfg,rnd),before=metrics(ld,sh),st=stateVector(ld,before);
+    const probs=actorForward(actor,st,Math.max(0.25,cfg.temp*0.55)).probs;
+    const a=argmax(probs); // deterministic evaluation after stochastic PPO training
+    const ns=enforceShares(sh.map((v,i)=>v+actions[a].d[i]),cfg),after=metrics(ld,ns),r=rewardFnCfg(after,cfg);
+    if(k&&a!==lastA)changes++;lastA=a;sh=ns;
+    out.push({t:k+1,r,lat:after.lat,emb:after.emb,iot:after.iotSrv,fair:after.fair,eff:after.eff,shares:[...sh],action:a,ld:[...ld]});
+  }
+  out.actionChanges=changes;return out;
+}
+
+function renderPoint(pt){
+  const prbs=parseInt($("prbs").value);shares=[...pt.shares];
+  $("reward").textContent=pt.r.toFixed(3);
+  $("lat").textContent=pt.lat.toFixed(2)+" ms";
+  $("thr").textContent=pt.emb.toFixed(3);
+  $("fair").textContent=pt.fair.toFixed(3);
+  $("eff").textContent=pt.eff.toFixed(3);
+  ["Emb","Url","Iot"].forEach((x,i)=>{
+    $("p"+x).textContent=Math.round(shares[i]*prbs);
+    $("s"+x).textContent=(shares[i]*100).toFixed(1)+"%";
+    $("d"+x).textContent=pt.ld[i].toFixed(2);
+    $("b"+x).style.width=(shares[i]*100).toFixed(1)+"%";
+  });
+  $("slaEmb").textContent=pt.emb>=parseFloat($("embMin").value)?"PASS":"VIOL";
+  $("slaUrl").textContent=pt.lat<=parseFloat($("latTarget").value)?"PASS":"VIOL";
+  $("slaIot").textContent=pt.iot>=parseFloat($("iotMin").value)?"PASS":"VIOL";
+  const st=stateVector(pt.ld,{lat:pt.lat,emb:pt.emb,fair:pt.fair,eff:pt.eff});
+  $("stateVec").textContent="["+st.map(v=>v.toFixed(3)).join(", ")+"]";
+  $("action").textContent=actions[pt.action].name;
+}
+
+function drawAxes(ctx,W,H,ymin,ymax,count,yLabel){
+  const L=48,R=10,T=12,B=30;
+  const pw=W-L-R, ph=H-T-B;
+  ctx.font="10px system-ui";
+  ctx.fillStyle="#9fb3c8";
+  ctx.strokeStyle="#24415f";
+  ctx.lineWidth=1;
+
+  for(let i=0;i<=4;i++){
+    const f=i/4, y=T+ph*(1-f), v=ymin+(ymax-ymin)*f;
+    ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-R,y); ctx.stroke();
+    ctx.textAlign="right"; ctx.textBaseline="middle";
+    ctx.fillText((Math.abs(ymax-ymin)>=5?v.toFixed(1):v.toFixed(2)),L-5,y);
+  }
+
+  ctx.strokeStyle="#5d7895";
+  ctx.beginPath(); ctx.moveTo(L,T); ctx.lineTo(L,H-B); ctx.lineTo(W-R,H-B); ctx.stroke();
+
+  ctx.fillStyle="#9fb3c8";
+  ctx.textBaseline="top";
+  ctx.textAlign="left"; ctx.fillText("1",L,H-B+5);
+  ctx.textAlign="right"; ctx.fillText(String(Math.max(1,count)),W-R,H-B+5);
+  ctx.textAlign="center"; ctx.fillText("Step",L+pw/2,H-B+5);
+
+  ctx.save();
+  ctx.translate(12,T+ph/2); ctx.rotate(-Math.PI/2);
+  ctx.textAlign="center"; ctx.textBaseline="top"; ctx.fillText(yLabel,0,0);
+  ctx.restore();
+
+  return {
+    L,R,T,B,pw,ph,
+    mapX:i=>L+(count<=1?pw/2:i*pw/(count-1)),
+    mapY:v=>T+ph-(v-ymin)/(ymax-ymin)*ph
+  };
+}
+
+function drawHistory(){
+  const c=$("chart"),ctx=c.getContext("2d"),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle="#091525";ctx.fillRect(0,0,W,H);
+
+  const vals=kpiHistory.map(x=>x.r);
+  const min=vals.length?Math.min(-0.5,...vals):-0.5;
+  const max=vals.length?Math.max(1,...vals):1;
+  const a=drawAxes(ctx,W,H,min,max,kpiHistory.length,"Reward");
+
+  if(!kpiHistory.length)return;
+
+  ctx.strokeStyle="#4aa3ff";ctx.lineWidth=2;ctx.beginPath();
+  kpiHistory.forEach((h,i)=>{
+    const x=a.mapX(i), y=clamp(a.mapY(h.r),a.T,H-a.B);
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle="#4aa3ff";
+  kpiHistory.forEach((h,i)=>{
+    const x=a.mapX(i), y=clamp(a.mapY(h.r),a.T,H-a.B);
+    ctx.beginPath();ctx.arc(x,y,3,0,2*Math.PI);ctx.fill();
+  });
+}
+
+function avgTail(arr,key){let n=Math.max(1,Math.floor(arr.length*0.25)),tail=arr.slice(-n);return tail.reduce((a,x)=>a+x[key],0)/tail.length}
+function pct(n,o){return o===0?0:100*(n-o)/Math.abs(o)}
+
+function drawCompare(id,key,ymin,ymax){
+  const c=$(id),ctx=c.getContext("2d"),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle="#091525";ctx.fillRect(0,0,W,H);
+  const n=Math.max(comparison.baseline.length,comparison.ppo.length);
+  const yNames={emb:"Throughput index",lat:"Latency (ms)",iot:"Service ratio"};
+  const a=drawAxes(ctx,W,H,ymin,ymax,n,yNames[key]||key);
+
+  function plot(arr,color){
+    if(!arr.length)return;
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();
+    arr.forEach((h,i)=>{
+      const x=a.L+(arr.length<=1?a.pw/2:i*a.pw/(arr.length-1));
+      const y=clamp(a.mapY(h[key]),a.T,H-a.B);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    });
+    ctx.stroke();
+  }
+  plot(comparison.baseline,"#ffb020");
+  plot(comparison.ppo,"#4aa3ff");
+}
+
+function renderBaselineOnly(){
+  const b=comparison.baseline;
+  if(!b.length) return;
+
+  const vals={
+    emb:avgTail(b,"emb"),
+    lat:avgTail(b,"lat"),
+    iot:avgTail(b,"iot"),
+    fair:avgTail(b,"fair"),
+    eff:avgTail(b,"eff"),
+    r:avgTail(b,"r")
+  };
+
+  $("cmpEmbBase").textContent=vals.emb.toFixed(3);
+  $("cmpUrlBase").textContent=vals.lat.toFixed(2);
+  $("cmpIotBase").textContent=vals.iot.toFixed(3);
+  $("cmpFairBase").textContent=vals.fair.toFixed(3);
+  $("cmpEffBase").textContent=vals.eff.toFixed(3);
+  $("cmpRBase").textContent=vals.r.toFixed(3);
+
+  ["cmpEmbPpo","cmpUrlPpo","cmpIotPpo","cmpFairPpo","cmpEffPpo","cmpRPpo"].forEach(id=>{
+    $(id).textContent="Run PPO";
+  });
+  ["gainEmb","gainUrl","gainIot","gainFair","gainEff","gainR"].forEach(id=>{
+    $(id).textContent="N/A — Run PPO";
+  });
+
+  drawBaselineCurve("chartEmb","emb",0,1.25);
+  drawBaselineCurve("chartUrl","lat",0,Math.max(5,...b.map(x=>x.lat)));
+  drawBaselineCurve("chartIot","iot",0,1.15);
+}
+
+
+function drawBaselineCurve(id,key,ymin,ymax){
+  const b=comparison.baseline;
+  const c=$(id),ctx=c.getContext("2d"),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle="#091525";ctx.fillRect(0,0,W,H);
+  const yNames={emb:"Throughput index",lat:"Latency (ms)",iot:"Service ratio"};
+  const a=drawAxes(ctx,W,H,ymin,ymax,b.length,yNames[key]||key);
+  if(!b.length)return;
+
+  ctx.strokeStyle="#ffb020";ctx.lineWidth=2;ctx.beginPath();
+  b.forEach((h,i)=>{
+    const x=a.L+(b.length<=1?a.pw/2:i*a.pw/(b.length-1));
+    const y=clamp(a.mapY(h[key]),a.T,H-a.B);
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  });
+  ctx.stroke();
+}
+function renderComparison(){
+  const b=comparison.baseline,p=comparison.ppo;if(!b.length||!p.length)return;
+  const vals={
+    emb:[avgTail(b,"emb"),avgTail(p,"emb")],lat:[avgTail(b,"lat"),avgTail(p,"lat")],
+    iot:[avgTail(b,"iot"),avgTail(p,"iot")],fair:[avgTail(b,"fair"),avgTail(p,"fair")],
+    eff:[avgTail(b,"eff"),avgTail(p,"eff")],r:[avgTail(b,"r"),avgTail(p,"r")]
+  };
+  $("cmpEmbBase").textContent=vals.emb[0].toFixed(3);$("cmpEmbPpo").textContent=vals.emb[1].toFixed(3);
+  $("cmpUrlBase").textContent=vals.lat[0].toFixed(2);$("cmpUrlPpo").textContent=vals.lat[1].toFixed(2);
+  $("cmpIotBase").textContent=vals.iot[0].toFixed(3);$("cmpIotPpo").textContent=vals.iot[1].toFixed(3);
+  $("cmpFairBase").textContent=vals.fair[0].toFixed(3);$("cmpFairPpo").textContent=vals.fair[1].toFixed(3);
+  $("cmpEffBase").textContent=vals.eff[0].toFixed(3);$("cmpEffPpo").textContent=vals.eff[1].toFixed(3);
+  $("cmpRBase").textContent=vals.r[0].toFixed(3);$("cmpRPpo").textContent=vals.r[1].toFixed(3);
+  $("gainEmb").textContent=(pct(vals.emb[1],vals.emb[0])>=0?"+":"")+pct(vals.emb[1],vals.emb[0]).toFixed(1)+"%";
+  const lg=100*(vals.lat[0]-vals.lat[1])/Math.max(vals.lat[0],1e-9);
+  $("gainUrl").textContent=(lg>=0?"+":"")+lg.toFixed(1)+"% latency improvement";
+  $("gainIot").textContent=(pct(vals.iot[1],vals.iot[0])>=0?"+":"")+pct(vals.iot[1],vals.iot[0]).toFixed(1)+"%";
+  $("gainFair").textContent=(pct(vals.fair[1],vals.fair[0])>=0?"+":"")+pct(vals.fair[1],vals.fair[0]).toFixed(1)+"%";
+  $("gainEff").textContent=(pct(vals.eff[1],vals.eff[0])>=0?"+":"")+pct(vals.eff[1],vals.eff[0]).toFixed(1)+"%";
+  $("gainR").textContent=(pct(vals.r[1],vals.r[0])>=0?"+":"")+pct(vals.r[1],vals.r[0]).toFixed(1)+"%";
+  drawCompare("chartEmb","emb",0,1.25);drawCompare("chartUrl","lat",0,Math.max(5,...b.map(x=>x.lat),...p.map(x=>x.lat)));drawCompare("chartIot","iot",0,1.15);
+}
+function renderDiag(d,b,p){
+  $("diagUpdates").textContent=d.updates;
+  $("diagClip").textContent=(100*d.clip).toFixed(1)+"%";
+  $("diagAdv").textContent=d.adv.toFixed(3);
+  $("diagCritic").textContent=d.critic.toFixed(4);
+  $("diagBaseActs").textContent=b.actionChanges;
+  $("diagPpoActs").textContent=p.actionChanges;
+}
+function appendLog(series,label){
+  $("log").textContent="";
+  series.forEach(pt=>{
+    $("log").textContent+=`t=${pt.t.toString().padStart(3)} | ${label.padEnd(8)} | ${actions[pt.action].name.padEnd(28)} | shares=${pt.shares.map(v=>(100*v).toFixed(0)+"%").join("/")} | lat=${pt.lat.toFixed(2)}ms | eMBB=${pt.emb.toFixed(2)} | R=${pt.r.toFixed(3)}
+`;
+  });
+  $("log").scrollTop=$("log").scrollHeight;
+}
+
+function runPPO(){
+  clearStaleState();
+  $("modeBadge").innerHTML="<strong>Mode:</strong> PPO-MDP — actor/critic training + evaluation";
+  const cfg=snapshotConfig();
+  $("status").textContent="Training PPO actor/critic and evaluating matched baseline…";
+  const trained=trainPPO(cfg);
+  liveActor=trained.actor;liveCritic=trained.critic;liveRnd=seededNoise(77777);liveDiag=trained.diag;
+  comparison.baseline=evaluateBaseline(cfg,24680);
+  comparison.ppo=evaluatePPO(trained.actor,cfg,24680);
+  kpiHistory=comparison.ppo.map(x=>({...x}));
+  t=kpiHistory.length;
+  renderPoint(kpiHistory[kpiHistory.length-1]);drawHistory();renderComparison();renderDiag(trained.diag,comparison.baseline,comparison.ppo);appendLog(kpiHistory,"PPO");
+  $("status").textContent=`PPO training complete. ${trained.diag.updates} actor/critic sample updates; evaluation uses the same traffic seed as baseline.`;
+}
+function runBaseline(){
+  clearStaleState();
+  const cfg=snapshotConfig();
+  $("modeBadge").innerHTML="<strong>Mode:</strong> RULE-BASED — PPO disabled";
+  comparison.baseline=evaluateBaseline(cfg,24680);
+
+  // Keep a previously trained PPO result only for visual comparison.
+  // Never train or update PPO from the Rule Baseline button.
+  if(liveActor){
+    comparison.ppo=evaluatePPO(liveActor,cfg,24680);
+  }else{
+    comparison.ppo=[];
+  }
+
+  kpiHistory=comparison.baseline.map(x=>({...x}));
+  t=kpiHistory.length;
+  renderPoint(kpiHistory[kpiHistory.length-1]);
+  drawHistory();
+
+  if(comparison.ppo.length){
+    renderComparison();
+    $("status").textContent="Rule-based baseline complete. PPO was disabled during this run; blue comparison is the stored trained PPO policy evaluated on the same traffic.";
+  }else{
+    renderBaselineOnly();
+    $("status").textContent="Rule-based baseline complete. PPO was disabled. Baseline outputs are shown in orange and in the Without PPO column. Run PPO-MDP separately to add the PPO comparison.";
+  }
+
+  $("diagUpdates").textContent="N/A";
+  $("diagClip").textContent="N/A";
+  $("diagAdv").textContent="N/A";
+  $("diagCritic").textContent="N/A";
+  $("diagBaseActs").textContent=comparison.baseline.actionChanges;
+  $("diagPpoActs").textContent=liveActor && comparison.ppo.length ? comparison.ppo.actionChanges+" (stored PPO)" : "N/A";
+  appendLog(kpiHistory,"RULE");
+}
+function runSingleStep(){
+  clearStaleState();
+  $("modeBadge").innerHTML="<strong>Mode:</strong> PPO-MDP SINGLE STEP";
+  const cfg=snapshotConfig();
+
+  // Initialize actor/critic only once, then continue learning on every click.
+  if(!liveActor){
+    const r=seededNoise(99173);
+    liveActor=makeActor(r);
+    liveCritic=makeCritic(r);
+    liveRnd=seededNoise(77777);
+    liveBaselineShares=[0.55,0.25,0.20];
+    liveBaseHistory=[];
+    shares=[0.55,0.25,0.20];
+    kpiHistory=[];
+    comparison={baseline:[],ppo:[]};
+    t=0;
+  }
+  if(!liveRnd) liveRnd=seededNoise(77777);
+
+  // One new traffic state per click.
+  const ld=loadAt(t,cfg,liveRnd);
+
+  // ---- PPO branch ----
+  const before=metrics(ld,shares);
+  const st=stateVector(ld,before);
+  const af=actorForward(liveActor,st,cfg.temp);
+  const a=sampleProb(af.probs,liveRnd);
+  const oldProb=af.probs[a];
+
+  const ns=enforceShares(shares.map((v,i)=>v+actions[a].d[i]),cfg);
+  const after=metrics(ld,ns);
+  const rwd=rewardFnCfg(after,cfg);
+  const st2=stateVector(ld,after);
+
+  const v=criticForward(liveCritic,st).v;
+  const vn=criticForward(liveCritic,st2).v;
+  const adv=rwd+cfg.gamma*vn-v;
+  const target=rwd+cfg.gamma*vn;
+
+  const sample={state:st,action:a,oldProb};
+  let clip=0,closs=0;
+  for(let e=0;e<4;e++){
+    clip+=actorUpdate(liveActor,sample,adv,cfg).clipped;
+    closs+=criticUpdate(liveCritic,st,target,cfg);
+  }
+
+  shares=ns;
+  t++;
+  const pt={
+    t,r:rwd,lat:after.lat,emb:after.emb,iot:after.iotSrv,
+    fair:after.fair,eff:after.eff,shares:[...shares],action:a,ld:[...ld]
+  };
+  kpiHistory.push(pt);
+  if(kpiHistory.length>180) kpiHistory.shift();
+
+  // ---- Matched rule-based branch using the SAME traffic state ----
+  const bBefore=metrics(ld,liveBaselineShares);
+  let ba=0;
+  if(bBefore.lat>cfg.latTarget) ba=1;
+  else if(bBefore.iotSrv<cfg.iotMin) ba=2;
+  else if(bBefore.emb<cfg.embMin) ba=4;
+
+  const bns=enforceShares(liveBaselineShares.map((v,i)=>v+actions[ba].d[i]),cfg);
+  const bAfter=metrics(ld,bns);
+  const br=rewardFnCfg(bAfter,cfg);
+  liveBaselineShares=bns;
+  const bpt={
+    t,r:br,lat:bAfter.lat,emb:bAfter.emb,iot:bAfter.iotSrv,
+    fair:bAfter.fair,eff:bAfter.eff,shares:[...bns],action:ba,ld:[...ld]
+  };
+  liveBaseHistory.push(bpt);
+  if(liveBaseHistory.length>180) liveBaseHistory.shift();
+
+  // Refresh EVERY visible output on every click.
+  comparison.baseline=liveBaseHistory.map(x=>({...x}));
+  comparison.ppo=kpiHistory.map(x=>({...x}));
+
+  renderPoint(pt);
+  drawHistory();
+  renderComparison();
+
+  liveDiag={
+    updates:(liveDiag.updates||0)+4,
+    clip:clip/4,
+    adv:Math.abs(adv),
+    critic:closs/4
+  };
+
+  $("diagUpdates").textContent=liveDiag.updates;
+  $("diagClip").textContent=(100*liveDiag.clip).toFixed(1)+"%";
+  $("diagAdv").textContent=liveDiag.adv.toFixed(3);
+  $("diagCritic").textContent=liveDiag.critic.toFixed(4);
+
+  // Live action-change counts.
+  function actionChanges(arr){
+    let c=0;
+    for(let i=1;i<arr.length;i++) if(arr[i].action!==arr[i-1].action) c++;
+    return c;
+  }
+  $("diagBaseActs").textContent=actionChanges(liveBaseHistory);
+  $("diagPpoActs").textContent=actionChanges(kpiHistory);
+
+  // Append a compact live trace for both policies.
+  $("log").textContent +=
+    `t=${t.toString().padStart(3)} | PPO  | ${actions[a].name.padEnd(28)} | shares=${shares.map(v=>(100*v).toFixed(0)+"%").join("/")} | lat=${after.lat.toFixed(2)}ms | eMBB=${after.emb.toFixed(2)} | mIoT=${after.iotSrv.toFixed(2)} | R=${rwd.toFixed(3)}\n` +
+    `t=${t.toString().padStart(3)} | RULE | ${actions[ba].name.padEnd(28)} | shares=${liveBaselineShares.map(v=>(100*v).toFixed(0)+"%").join("/")} | lat=${bAfter.lat.toFixed(2)}ms | eMBB=${bAfter.emb.toFixed(2)} | mIoT=${bAfter.iotSrv.toFixed(2)} | R=${br.toFixed(3)}\n`;
+
+  $("log").scrollTop=$("log").scrollHeight;
+
+  $("status").textContent=
+    `Single-step MDP ${t} complete — PPO action: ${actions[a].name}; rule action: ${actions[ba].name}. All KPIs and comparisons refreshed.`;
+}
+function resetAll(){
+  clearStaleState();
+  $("modeBadge").innerHTML="<strong>Mode:</strong> READY";
+  shares=[0.55,0.25,0.20];kpiHistory=[];comparison={baseline:[],ppo:[]};t=0;liveActor=null;liveCritic=null;liveRnd=null;liveDiag={updates:0,clip:0,adv:0,critic:0};liveBaselineShares=[0.55,0.25,0.20];liveBaseHistory=[];
+  $("log").textContent="";$("status").textContent="Reset complete.";
+  ["cmpEmbBase","cmpEmbPpo","gainEmb","cmpUrlBase","cmpUrlPpo","gainUrl","cmpIotBase","cmpIotPpo","gainIot","cmpFairBase","cmpFairPpo","gainFair","cmpEffBase","cmpEffPpo","gainEff","cmpRBase","cmpRPpo","gainR","diagUpdates","diagClip","diagAdv","diagCritic","diagBaseActs","diagPpoActs"].forEach(id=>$(id).textContent="—");
+  drawHistory();["chartEmb","chartUrl","chartIot"].forEach(id=>{let c=$(id),x=c.getContext("2d");x.clearRect(0,0,c.width,c.height)});
+  initial();
+}
+function initial(){
+  const cfg=snapshotConfig(),ld=[cfg.loadEmb,cfg.loadUrl,cfg.loadIot],m=metrics(ld,shares),r=rewardFnCfg(m,cfg);
+  const pt={t:0,r,lat:m.lat,emb:m.emb,iot:m.iotSrv,fair:m.fair,eff:m.eff,shares:[...shares],action:0,ld};
+  renderPoint(pt);
+}
+$("run").onclick=runPPO;
+$("stepBtn").onclick=runSingleStep;
+$("baseline").onclick=runBaseline;
+$("reset").onclick=resetAll;
+
+// Mark previous outputs stale whenever any configuration control changes.
+[
+  "bw","prbs","steps","interval","loadEmb","loadUrl","loadIot",
+  "latTarget","urlMin","embMin","iotMin","gamma","clip","lr","temp"
+].forEach(id=>{
+  const el=$(id);
+  if(!el) return;
+  el.addEventListener("input", markOutputsStale);
+  el.addEventListener("change", markOutputsStale);
+});
+
+initial();
+
+
+["loadEmb","loadUrl","loadIot"].forEach(id=>{
+  const el=$(id), val=$(id+"Val");
+  if(el&&val){
+    const refresh=()=>val.textContent=parseFloat(el.value).toFixed(2);
+    el.addEventListener("input",refresh);
+    el.addEventListener("change",refresh);
+    refresh();
+  }
+});
+
+</script>
+</body>
+</html>
