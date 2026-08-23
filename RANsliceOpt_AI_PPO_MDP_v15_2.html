@@ -807,8 +807,32 @@ function channelTrace(cfg){
   const line=(name,x)=>`${name}: model=${x.model}, f=${x.frequencyGhz.toFixed(2)}GHz, d=${x.distanceM.toFixed(0)}m, slow=${x.slowMobilityPct.toFixed(0)}%, basePL=${x.baseDb.toFixed(2)}dB, mobilityMargin=${x.mobilityMarginDb.toFixed(2)}dB, totalPL=${x.totalDb.toFixed(2)}dB, capacityFactor=${pathLossCapacityFactor(x.totalDb).toFixed(3)}`;
   return `[CHANNEL/PATHLOSS]\n${line("eMBB",c.emb)}\n${line("URLLC",c.urllc)}\n${line("eMTC",c.emtc)}\n`;
 }
-function appendLog(series,label,cfg){
-  $("log").textContent=channelTrace(cfg)+"\n";
+function workflowTrace(mode,cfg,details={}){
+  const rolloutLen=Math.max(24,Math.min(64,cfg.steps));
+  const iterations=Math.max(6,Math.min(12,Math.round(cfg.steps/15)));
+  const common=
+    `[WORKFLOW — ${mode}]\n`+
+    `[01 CONFIG] Snapshot captured: steps=${cfg.steps}, interval=${$("interval").value}ms, PRBs=${$("prbs").value}, loads=${cfg.loadEmb.toFixed(2)}/${cfg.loadUrl.toFixed(2)}/${cfg.loadIot.toFixed(2)}\n`+
+    `[02 RADIO] eMBB CA=${cfg.embCaMode}; URLLC=single carrier; eMTC=single carrier\n`+
+    `[03 CHANNEL] Path loss and mobility capacity factors calculated for all three slices\n`;
+  if(mode==="PPO TRAIN + EVALUATE") return common+
+    `[04 INIT] Actor and critic initialized with seed=99173; traffic-training seeds=12345+iteration×137\n`+
+    `[05 SAMPLE] ${iterations} rollouts × ${rolloutLen} samples collected; state, action, old probability, reward and next state stored\n`+
+    `[06 ADVANTAGE] TD residuals and GAE returns calculated with gamma=${cfg.gamma.toFixed(3)} and lambda=0.95; advantages normalized\n`+
+    `[07 PPO UPDATE] 4 epochs applied; updates=${details.updates||0}, clip=${((details.clip||0)*100).toFixed(1)}%, criticLoss=${(details.critic||0).toFixed(4)}\n`+
+    `[08 SAFETY] Minimum URLLC share and normalized slice-share bounds projected after every candidate action\n`+
+    `[09 MATCHED EVAL] PPO and rule baseline evaluated for ${cfg.steps} steps with identical seed=24680\n`+
+    `[10 OUTPUT] KPI cards, allocation, comparison charts, diagnostics and trace rendered\n`+
+    `[11 COMPLETE] PPO workflow complete\n`;
+  return common+
+    `[04 RULE POLICY] PPO training disabled; deterministic SLA checks select each allocation action\n`+
+    `[05 SAFETY] Minimum URLLC share and normalized slice-share bounds projected after every action\n`+
+    `[06 EVALUATE] Rule baseline evaluated for ${cfg.steps} steps with seed=24680${details.storedPpo?"; stored PPO evaluated on the same seed":""}\n`+
+    `[07 OUTPUT] KPI cards, allocation, comparison availability and trace rendered\n`+
+    `[08 COMPLETE] Rule-baseline workflow complete\n`;
+}
+function appendLog(series,label,cfg,workflow){
+  $("log").textContent=workflow+"\n"+channelTrace(cfg)+"\n[EVALUATION STEPS]\n";
   series.forEach(pt=>{
     $("log").textContent+=`t=${pt.t.toString().padStart(3)} | ${label.padEnd(8)} | ${actions[pt.action].name.padEnd(28)} | shares=${pt.shares.map(v=>(100*v).toFixed(0)+"%").join("/")} | lat=${pt.lat.toFixed(2)}ms | eMBB=${pt.emb.toFixed(2)} | R=${pt.r.toFixed(3)}
 `;
@@ -827,7 +851,7 @@ function runPPO(){
   comparison.ppo=evaluatePPO(trained.actor,cfg,24680);
   kpiHistory=comparison.ppo.map(x=>({...x}));
   t=kpiHistory.length;
-  renderPoint(kpiHistory[kpiHistory.length-1]);drawHistory();renderComparison();renderDiag(trained.diag,comparison.baseline,comparison.ppo);appendLog(kpiHistory,"PPO",cfg);
+  renderPoint(kpiHistory[kpiHistory.length-1]);drawHistory();renderComparison();renderDiag(trained.diag,comparison.baseline,comparison.ppo);appendLog(kpiHistory,"PPO",cfg,workflowTrace("PPO TRAIN + EVALUATE",cfg,trained.diag));
   $("status").textContent=`PPO training complete. ${trained.diag.updates} actor/critic sample updates; evaluation uses the same traffic seed as baseline.`;
 }
 function runBaseline(){
@@ -863,12 +887,13 @@ function runBaseline(){
   $("diagCritic").textContent="N/A";
   $("diagBaseActs").textContent=comparison.baseline.actionChanges;
   $("diagPpoActs").textContent=liveActor && comparison.ppo.length ? comparison.ppo.actionChanges+" (stored PPO)" : "N/A";
-  appendLog(kpiHistory,"RULE",cfg);
+  appendLog(kpiHistory,"RULE",cfg,workflowTrace("RULE BASELINE",cfg,{storedPpo:!!liveActor}));
 }
 function runSingleStep(){
   clearStaleState();
   $("modeBadge").innerHTML="<strong>Mode:</strong> PPO-MDP SINGLE STEP";
   const cfg=snapshotConfig();
+  const initializedNow=!liveActor;
 
   // Initialize actor/critic only once, then continue learning on every click.
   if(!liveActor){
@@ -969,8 +994,23 @@ function runSingleStep(){
   $("diagPpoActs").textContent=actionChanges(kpiHistory);
 
   // Append a compact live trace for both policies.
+  const stepWorkflow=
+    `[WORKFLOW — SINGLE STEP ${t}]\n`+
+    `[01 CONFIG] Current controls captured; traffic/action seed stream=77777\n`+
+    `[02 CHANNEL] Mobility-aware path loss and capacity factors recalculated\n`+
+    `[03 LOAD] eMBB=${ld[0].toFixed(3)}, URLLC=${ld[1].toFixed(3)}, eMTC=${ld[2].toFixed(3)}\n`+
+    `[04 STATE] [${st.map(v=>v.toFixed(3)).join(", ")}]\n`+
+    `[05 POLICY] Action probabilities=[${af.probs.map(v=>v.toFixed(3)).join(", ")}]${initializedNow?"; actor/critic initialized with seed=99173":""}\n`+
+    `[06 ACTION] PPO selected: ${actions[a].name}\n`+
+    `[07 SAFETY] Share bounds, normalization and URLLC minimum applied; output=${shares.map(v=>(100*v).toFixed(1)+"%").join("/")}\n`+
+    `[08 REWARD] reward=${rwd.toFixed(4)}, V(s)=${v.toFixed(4)}, V(next)=${vn.toFixed(4)}\n`+
+    `[09 ADVANTAGE] A=${adv.toFixed(4)}, criticTarget=${target.toFixed(4)}\n`+
+    `[10 UPDATE] 4 actor/critic epochs; clipFraction=${(clip/4).toFixed(3)}, criticLoss=${(closs/4).toFixed(4)}\n`+
+    `[11 RULE MATCH] Rule action on identical traffic: ${actions[ba].name}; reward=${br.toFixed(4)}\n`+
+    `[12 OUTPUT] KPIs, comparisons, diagnostics and charts refreshed\n`+
+    `[13 COMPLETE] Single-step workflow complete\n`;
   $("log").textContent +=
-    channelTrace(cfg) +
+    stepWorkflow + channelTrace(cfg) +
     `t=${t.toString().padStart(3)} | PPO  | ${actions[a].name.padEnd(28)} | shares=${shares.map(v=>(100*v).toFixed(0)+"%").join("/")} | lat=${after.lat.toFixed(2)}ms | eMBB=${after.emb.toFixed(2)} | mIoT=${after.iotSrv.toFixed(2)} | R=${rwd.toFixed(3)}\n` +
     `t=${t.toString().padStart(3)} | RULE | ${actions[ba].name.padEnd(28)} | shares=${liveBaselineShares.map(v=>(100*v).toFixed(0)+"%").join("/")} | lat=${bAfter.lat.toFixed(2)}ms | eMBB=${bAfter.emb.toFixed(2)} | mIoT=${bAfter.iotSrv.toFixed(2)} | R=${br.toFixed(3)}\n`;
 
