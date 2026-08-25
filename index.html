@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<<<<<<< HEAD
 <title>RANsliceOpt AI v15.3 — Mobility-Aware Soft RAN Slicing with PPO + Multi-Step MDP</title>
+=======
+<title>RANsliceOpt AI v15.3 — Multicell PPO + Multi-Step MDP</title>
+>>>>>>> 6d85aa8 (Publish v15.3 multicell implementation)
 <style>
 :root{
   --bg:#07111f; --panel:#0d1b2a; --panel2:#12263a; --text:#eaf2ff; --muted:#9fb3c8;
@@ -103,32 +107,49 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 .hidden{display:none!important}
 .config-summary{margin-bottom:14px;padding:10px 12px;border-color:#315b7e}
 .config-summary strong{color:#eaf2ff}
+.site-details{margin:10px 0;border:1px solid var(--line);border-radius:10px;padding:9px;background:#091725}
+.site-details summary{cursor:pointer;color:#cfe0f5;font-size:13px;font-weight:700}
+.site-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:10px}
+.site-row{display:grid;grid-template-columns:54px repeat(3,1fr);gap:5px;align-items:center}
+.site-row span{font-size:11px;color:var(--muted)}
+.site-row input{min-width:0;padding:6px;font-size:11px}
+.derived-box{padding:8px 10px;margin:8px 0;border:1px solid #315b7e;border-radius:9px;background:#0a1726;font-size:12px;color:#bcd0e5}
+@media(max-width:520px){.site-grid{grid-template-columns:1fr}}
 
 </style>
 </head>
 <body>
 <header>
+<<<<<<< HEAD
   <h1>RANsliceOpt AI v15.3 — Mobility-Aware Soft RAN Slicing with PPO + Multi-Step MDP</h1>
   <div class="subtitle">Browser prototype for eMBB, URLLC and mIoT/eMTC resource optimization with mobility-aware path-loss estimation and SLA protection.</div>
+=======
+  <h1>RANsliceOpt AI v15.3 — 10-Site Multicell Slicing with PPO + Multi-Step MDP</h1>
+  <div class="subtitle">Full PPO artifact with per-site UE load, aggregate eMBB FDD/TDD capacity, single-carrier URLLC and mIoT/eMTC, and retry-aware mIoT access targets.</div>
+>>>>>>> 6d85aa8 (Publish v15.3 multicell implementation)
 </header>
 <div class="wrap">
 <div class="grid">
   <aside class="panel">
-    <h2>Cell & Traffic Configuration</h2>
+    <h2>10-Site Cluster & Traffic</h2>
     <div class="row"><label>System bandwidth (MHz)</label><select id="bw"><option>50</option><option selected>100</option><option>200</option></select></div>
-    <div class="row"><label>Total PRBs</label><input id="prbs" type="number" value="273" min="50" max="1000"></div>
+    <div class="row"><label>PRBs per carrier / site</label><input id="prbs" type="number" value="273" min="50" max="1000"></div>
+    <div class="row"><label>Site coverage radius (m)</label><input id="siteRadius" type="number" value="200" min="20" max="5000" step="10"></div>
+    <details class="site-details" open><summary>Site locations and active UEs (10)</summary><div class="small" style="margin-top:6px">Each row: site · X metres · Y metres · active UEs</div><div id="siteGrid" class="site-grid"></div></details>
+    <div id="clusterDemandSummary" class="derived-box">Calculating cluster demand…</div>
     <div class="row"><label>Simulation steps</label><input id="steps" type="number" value="120" min="10" max="1000"></div>
     <div class="row"><label>Decision interval (ms)</label><input id="interval" type="number" value="10" min="1" max="1000"></div>
     <hr>
     <h2>eMBB Radio Configuration</h2>
-    <div class="row"><label>Carrier aggregation mode</label><select id="embCaMode"><option value="TDD">TDD CA</option><option value="FDD">FDD CA</option><option value="FDD_TDD" selected>FDD + TDD CA</option></select></div>
-    <div class="row" id="embFddCarriersRow"><label>FDD component carriers</label><input id="embFddCarriers" type="number" value="1" min="1" max="8" step="1"></div>
-    <div class="row" id="embTddCarriersRow"><label>TDD component carriers</label><input id="embTddCarriers" type="number" value="1" min="1" max="8" step="1"></div>
+    <div class="row"><label>eMBB capacity mode</label><select id="embCaMode"><option value="FDD">Primary + additional FDD</option><option value="FDD_TDD" selected>FDD + TDD aggregation</option></select></div>
+    <div class="row" id="embFddCarriersRow"><label>Total eMBB FDD carriers</label><input id="embFddCarriers" type="number" value="2" min="1" max="8" step="1"></div>
+    <div class="row" id="embTddCarriersRow"><label>Additional eMBB TDD carriers</label><input id="embTddCarriers" type="number" value="1" min="0" max="8" step="1"></div>
+    <div class="row" id="embTddDlPctRow"><label>TDD downlink capacity</label><select id="embTddDlPct"><option value="0.5">Balanced — 50% DL</option><option value="0.6">DL oriented — 60%</option><option value="0.7" selected>Capacity — 70% DL</option><option value="0.8">High DL — 80%</option></select></div>
     <div class="row"><label>eMBB channel model</label><select id="embChannelModel"><option value="UMa" selected>UMa</option><option value="UMi">UMi</option><option value="RMa">RMa</option></select></div>
     <div class="row"><label>eMBB carrier frequency (GHz)</label><input id="embFrequency" type="number" value="3.5" min="0.1" max="100" step="0.1"></div>
     <div class="row"><label>eMBB representative distance (m)</label><input id="embDistance" type="number" value="200" min="1" max="10000" step="1"></div>
     <div class="row"><label>eMBB slow mobility (%)</label><input id="embSlowMobility" type="number" value="20" min="0" max="100" step="1"></div>
-    <div class="small" id="embCaHint">eMBB aggregates 2 component carriers across FDD and TDD spectrum.</div>
+    <div class="small" id="embCaHint">eMBB capacity includes the shared primary FDD allocation plus supplemental FDD and effective TDD downlink PRBs.</div>
     <hr>
     <h2>URLLC / eMTC Radio Configuration</h2>
     <div class="row"><label>URLLC carriers</label><input value="Single carrier" readonly aria-label="URLLC carrier configuration"></div>
@@ -146,13 +167,15 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
     <h2>Slice Demand</h2>
     <div class="row"><label>eMBB load</label><div class="range-wrap"><input id="loadEmb" type="range" min="0.2" max="1.5" value="0.9" step="0.05"><div class="range-scale"><span>0.20</span><span class="cur" id="loadEmbVal">0.90</span><span class="max">1.50</span></div></div></div>
     <div class="row"><label>URLLC load</label><div class="range-wrap"><input id="loadUrl" type="range" min="0.05" max="1.2" value="0.45" step="0.05"><div class="range-scale"><span>0.05</span><span class="cur" id="loadUrlVal">0.45</span><span class="max">1.20</span></div></div></div>
-    <div class="row"><label>mIoT/eMTC load</label><div class="range-wrap"><input id="loadIot" type="range" min="0.05" max="1.2" value="0.35" step="0.05"><div class="range-scale"><span>0.05</span><span class="cur" id="loadIotVal">0.35</span><span class="max">1.20</span></div></div></div>
+    <div class="row"><label>Registered mIoT density</label><select id="miotDensity"><option value="0.0001">Sparse — 100/km²</option><option value="0.001" selected>Moderate — 1,000/km²</option><option value="0.01">Dense — 10,000/km²</option><option value="0.1">Very dense — 100,000/km²</option><option value="1">IMT capability — 1,000,000/km²</option></select></div>
+    <div class="row"><label>Devices seeking access</label><select id="miotAccessPct"><option value="0.1">Light — 0.1%</option><option value="1" selected>Typical — 1%</option><option value="5">Busy — 5%</option><option value="20">Access burst — 20%</option></select></div>
+    <div class="row"><label>Average attempts / UE</label><select id="miotAvgAttempts"><option value="1">No retries — 1.0</option><option value="1.5" selected>Low retries — 1.5</option><option value="2">Moderate — 2.0</option><option value="3">High — 3.0</option><option value="5">Severe — 5.0</option></select></div>
     <hr>
     <h2>SLA Constraints</h2>
     <div class="row"><label>URLLC latency target (ms)</label><input id="latTarget" type="number" value="2" min="0.5" step="0.5"></div>
     <div class="row"><label>URLLC min PRB share (%)</label><input id="urlMin" type="number" value="20" min="5" max="80"></div>
     <div class="row"><label>eMBB min throughput index</label><input id="embMin" type="number" value="0.55" min="0.1" max="1.0" step="0.05"></div>
-    <div class="row"><label>mIoT min service ratio</label><input id="iotMin" type="number" value="0.75" min="0.1" max="1.0" step="0.05"></div>
+    <div class="row"><label>mIoT access SLA profile</label><select id="iotSlaProfile"><option value="best-effort">Best effort — monitor only</option><option value="managed-95">Managed target — 95%</option><option value="managed-99" selected>Managed target — 99%</option><option value="contract-999">Contractual target — 99.9%</option></select></div>
     <hr>
     <h2>PPO / MDP</h2>
     <div class="row"><label>Gamma</label><input id="gamma" type="number" value="0.97" min="0.5" max="0.999" step="0.01"></div>
@@ -171,8 +194,9 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
   </aside>
 
   <main id="outputArea">
-    <div class="status config-summary"><strong>eMBB radio:</strong> <span id="embCaSummary">FDD + TDD CA (1 FDD + 1 TDD carrier; 2 CC total)</span></div>
+    <div class="status config-summary"><strong>eMBB capacity:</strong> <span id="embCaSummary">Calculating aggregate carrier capacity…</span></div>
     <div class="status config-summary"><strong>URLLC / eMTC radio:</strong> <span id="singleCarrierSummary">URLLC single carrier · 30% slow mobility; eMTC single carrier · 80% slow mobility</span></div>
+    <div class="status config-summary"><strong>Multicell / mIoT:</strong> <span id="multiCellSummary">Calculating 10-site demand…</span></div>
     <div class="cards">
       <div class="card"><div class="k">Reward</div><div class="v" id="reward">0.000</div></div>
       <div class="card"><div class="k">URLLC Latency</div><div class="v" id="lat">—</div></div>
@@ -286,6 +310,47 @@ window.addEventListener("error", function(e){
 });
 const $ = id => document.getElementById(id);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const SITE_COUNT=10;
+const IOT_SLA={"best-effort":0,"managed-95":0.95,"managed-99":0.99,"contract-999":0.999};
+
+function defaultSites(){
+  return Array.from({length:SITE_COUNT},(_,i)=>({id:`S${i+1}`,x:(i%5)*350,y:Math.floor(i/5)*350,activeUes:150}));
+}
+function renderSiteControls(){
+  $("siteGrid").innerHTML=defaultSites().map((s,i)=>`<div class="site-row"><span>Site ${i+1}</span><input class="site-x" data-site="${i}" type="number" value="${s.x}" aria-label="Site ${i+1} X metres"><input class="site-y" data-site="${i}" type="number" value="${s.y}" aria-label="Site ${i+1} Y metres"><input class="site-ues" data-site="${i}" type="number" min="0" value="${s.activeUes}" aria-label="Site ${i+1} active UEs"></div>`).join("");
+}
+function readSites(){
+  return Array.from({length:SITE_COUNT},(_,i)=>({
+    id:`S${i+1}`,
+    x:parseFloat(document.querySelector(`.site-x[data-site="${i}"]`).value)||0,
+    y:parseFloat(document.querySelector(`.site-y[data-site="${i}"]`).value)||0,
+    activeUes:Math.max(0,parseInt(document.querySelector(`.site-ues[data-site="${i}"]`).value)||0)
+  }));
+}
+
+function computeSiteAreas(sites,radius){
+  radius=Math.max(1,radius||1);
+  const xs=sites.map(s=>s.x),ys=sites.map(s=>s.y);
+  const minX=Math.min(...xs)-radius,maxX=Math.max(...xs)+radius,minY=Math.min(...ys)-radius,maxY=Math.max(...ys)+radius;
+  const nx=120,ny=80,dx=(maxX-minX)/nx,dy=(maxY-minY)/ny,sampleArea=dx*dy,r2=radius*radius,areas=Array(SITE_COUNT).fill(0);
+  for(let iy=0;iy<ny;iy++){const y=minY+(iy+.5)*dy;for(let ix=0;ix<nx;ix++){const x=minX+(ix+.5)*dx;let owner=-1,near=Infinity;for(let i=0;i<sites.length;i++){const d2=(x-sites[i].x)**2+(y-sites[i].y)**2;if(d2<=r2&&d2<near){near=d2;owner=i;}}if(owner>=0)areas[owner]+=sampleArea;}}
+  return areas;
+}
+
+function miotContext(sites,radius,density,accessPct,avgAttempts,prbs){
+  const areas=computeSiteAreas(sites,radius);
+  const bySite=areas.map((areaM2,i)=>{const registered=areaM2*density,seeking=registered*accessPct/100,attempts=seeking*avgAttempts;return{site:sites[i].id,areaM2,registered,seeking,attempts};});
+  const sum=key=>bySite.reduce((a,x)=>a+x[key],0),worst=Math.max(...bySite.map(x=>x.attempts),0);
+  return {bySite,coveredAreaM2:sum("areaM2"),registered:sum("registered"),seeking:sum("seeking"),attempts:sum("attempts"),worstSiteAttempts:worst,normalizedLoad:clamp(0.1+worst/Math.max(1,prbs*0.10),0.05,1.5)};
+}
+
+function carrierCapacity(cfg,embShare=1){
+  const fdd=cfg.embCaMode==="FDD"?cfg.embFddCarriers:cfg.embFddCarriers;
+  const tdd=cfg.embCaMode==="FDD_TDD"?cfg.embTddCarriers:0;
+  const supplementalFdd=Math.max(0,fdd-1)*cfg.prbs;
+  const effectiveTdd=tdd*cfg.prbs*cfg.embTddDlPct;
+  return {primaryPrbs:cfg.prbs,supplementalFdd,effectiveTdd,embEligiblePrbs:cfg.prbs+supplementalFdd+effectiveTdd,embAllocatedPrbs:embShare*cfg.prbs+supplementalFdd+effectiveTdd,urllcEligiblePrbs:cfg.prbs,emtcEligiblePrbs:cfg.prbs};
+}
 
 const actions = [
   {name:"Hold allocation", d:[0,0,0]},
@@ -366,7 +431,9 @@ function pathLossCapacityFactor(pathLossDb){
 }
 function metrics(ld,sh,cfg){
   const ch=channelEstimates(cfg);
-  const embCap=sh[0]*1.55*pathLossCapacityFactor(ch.emb.totalDb);
+  const carriers=carrierCapacity(cfg,sh[0]);
+  const embPrimaryEquivalents=carriers.embAllocatedPrbs/Math.max(1,cfg.prbs);
+  const embCap=embPrimaryEquivalents*1.55*pathLossCapacityFactor(ch.emb.totalDb);
   const urlCap=sh[1]*1.2*pathLossCapacityFactor(ch.urllc.totalDb);
   const iotCap=sh[2]*1.8*pathLossCapacityFactor(ch.emtc.totalDb);
   const emb=clamp(embCap/(ld[0]+0.22),0,1.25);
@@ -386,14 +453,23 @@ function rewardFnCfg(m,cfg){
 }
 function stateVector(ld,m){ return [ld[0],ld[1],ld[2],m.lat/5,m.emb,m.fair,m.eff]; }
 function snapshotConfig(){
+  const sites=readSites();
+  const prbs=parseInt($("prbs").value);
+  const siteRadius=parseFloat($("siteRadius").value);
+  const miotDensity=parseFloat($("miotDensity").value);
+  const miotAccessPct=parseFloat($("miotAccessPct").value);
+  const miotAvgAttempts=parseFloat($("miotAvgAttempts").value);
+  const miot=miotContext(sites,siteRadius,miotDensity,miotAccessPct,miotAvgAttempts,prbs);
   return {
+    prbs,siteRadius,sites,miot,miotDensity,miotAccessPct,miotAvgAttempts,
     steps:parseInt($("steps").value),
     loadEmb:parseFloat($("loadEmb").value),
     loadUrl:parseFloat($("loadUrl").value),
-    loadIot:parseFloat($("loadIot").value),
+    loadIot:miot.normalizedLoad,
     embCaMode:$("embCaMode").value,
     embFddCarriers:parseInt($("embFddCarriers").value),
     embTddCarriers:parseInt($("embTddCarriers").value),
+    embTddDlPct:parseFloat($("embTddDlPct").value),
     embChannelModel:$("embChannelModel").value,
     embFrequency:parseFloat($("embFrequency").value),
     embDistance:parseFloat($("embDistance").value),
@@ -411,7 +487,8 @@ function snapshotConfig(){
     latTarget:parseFloat($("latTarget").value),
     urlMin:parseFloat($("urlMin").value)/100,
     embMin:parseFloat($("embMin").value),
-    iotMin:parseFloat($("iotMin").value),
+    iotSlaProfile:$("iotSlaProfile").value,
+    iotMin:IOT_SLA[$("iotSlaProfile").value],
     gamma:parseFloat($("gamma").value),
     clip:parseFloat($("clip").value),
     lr:parseFloat($("lr").value),
@@ -422,19 +499,24 @@ function snapshotConfig(){
 function refreshEmbCaConfig(){
   const mode=$("embCaMode").value;
   const fdd=Math.max(1,parseInt($("embFddCarriers").value)||1);
-  const tdd=Math.max(1,parseInt($("embTddCarriers").value)||1);
+  const tdd=Math.max(0,parseInt($("embTddCarriers").value)||0);
+  const dl=parseFloat($("embTddDlPct").value)||0.7;
+  const prbs=Math.max(1,parseInt($("prbs").value)||273);
   $("embFddCarriers").value=fdd;
   $("embTddCarriers").value=tdd;
-  $("embFddCarriersRow").classList.toggle("hidden",mode==="TDD");
   $("embTddCarriersRow").classList.toggle("hidden",mode==="FDD");
-  const total=mode==="FDD"?fdd:mode==="TDD"?tdd:fdd+tdd;
-  const label=mode==="FDD"?`FDD CA (${fdd} FDD carrier${fdd===1?"":"s"}; ${total} CC total)`:
-    mode==="TDD"?`TDD CA (${tdd} TDD carrier${tdd===1?"":"s"}; ${total} CC total)`:
-    `FDD + TDD CA (${fdd} FDD + ${tdd} TDD carrier${tdd===1?"":"s"}; ${total} CC total)`;
-  $("embCaHint").textContent=mode==="FDD_TDD"?
-    `eMBB aggregates ${total} component carriers across FDD and TDD spectrum.`:
-    `eMBB aggregates ${total} component carrier${total===1?"":"s"} in ${mode} spectrum.`;
-  $("embCaSummary").textContent=label;
+  $("embTddDlPctRow").classList.toggle("hidden",mode==="FDD");
+  const effectiveTdd=mode==="FDD_TDD"?Math.round(tdd*prbs*dl):0;
+  const supplementalFdd=(fdd-1)*prbs,total=prbs+supplementalFdd+effectiveTdd;
+  $("embCaHint").textContent=`Primary FDD ${prbs} PRBs + supplemental FDD ${supplementalFdd} PRBs + effective TDD DL ${effectiveTdd} PRBs = ${total} total eMBB-eligible PRBs/site.`;
+  $("embCaSummary").textContent=`${fdd} FDD CC (${prbs+supplementalFdd} PRBs)${mode==="FDD_TDD"?` + ${tdd} TDD CC at ${(dl*100).toFixed(0)}% DL (${effectiveTdd} effective PRBs)`:""}; total ${total} PRBs/site. Primary FDD remains the shared coverage carrier.`;
+}
+
+function refreshMulticellSummary(){
+  const cfg=snapshotConfig(),totalUes=cfg.sites.reduce((a,s)=>a+s.activeUes,0);
+  $("clusterDemandSummary").textContent=`${SITE_COUNT} sites · ${totalUes.toLocaleString()} active UEs · ${Math.round(cfg.miot.coveredAreaM2).toLocaleString()} m² unique coverage · ${Math.ceil(cfg.miot.attempts).toLocaleString()} mIoT access attempts including retries`;
+  const sla=cfg.iotMin?`${(cfg.iotMin*100).toFixed(cfg.iotMin===.999?1:0)}% target`:"Best effort / monitor only";
+  $("multiCellSummary").textContent=`${totalUes.toLocaleString()} active UEs; ${Math.ceil(cfg.miot.registered).toLocaleString()} registered mIoT devices; ${Math.ceil(cfg.miot.seeking).toLocaleString()} unique devices seeking access; ${Math.ceil(cfg.miot.attempts).toLocaleString()} attempts; ${sla}.`;
 }
 
 function refreshSingleCarrierConfig(){
@@ -618,21 +700,23 @@ function evaluatePPO(actor,cfg,seed){
 }
 
 function renderPoint(pt){
-  const prbs=parseInt($("prbs").value);shares=[...pt.shares];
+  const cfg=snapshotConfig(),prbs=cfg.prbs;shares=[...pt.shares];
   $("reward").textContent=pt.r.toFixed(3);
   $("lat").textContent=pt.lat.toFixed(2)+" ms";
   $("thr").textContent=pt.emb.toFixed(3);
   $("fair").textContent=pt.fair.toFixed(3);
   $("eff").textContent=pt.eff.toFixed(3);
+  const cap=carrierCapacity(cfg,shares[0]);
+  const allocated=[cap.embAllocatedPrbs,shares[1]*prbs,shares[2]*prbs];
   ["Emb","Url","Iot"].forEach((x,i)=>{
-    $("p"+x).textContent=Math.round(shares[i]*prbs);
+    $("p"+x).textContent=Math.round(allocated[i]);
     $("s"+x).textContent=(shares[i]*100).toFixed(1)+"%";
     $("d"+x).textContent=pt.ld[i].toFixed(2);
     $("b"+x).style.width=(shares[i]*100).toFixed(1)+"%";
   });
   $("slaEmb").textContent=pt.emb>=parseFloat($("embMin").value)?"PASS":"VIOL";
   $("slaUrl").textContent=pt.lat<=parseFloat($("latTarget").value)?"PASS":"VIOL";
-  $("slaIot").textContent=pt.iot>=parseFloat($("iotMin").value)?"PASS":"VIOL";
+  $("slaIot").textContent=cfg.iotMin===0?"MONITOR":pt.iot>=cfg.iotMin?"PASS":"VIOL";
   const st=stateVector(pt.ld,{lat:pt.lat,emb:pt.emb,fair:pt.fair,eff:pt.eff});
   $("stateVec").textContent="["+st.map(v=>v.toFixed(3)).join(", ")+"]";
   $("action").textContent=actions[pt.action].name;
@@ -810,26 +894,28 @@ function channelTrace(cfg){
 function workflowTrace(mode,cfg,details={}){
   const rolloutLen=Math.max(24,Math.min(64,cfg.steps));
   const iterations=Math.max(6,Math.min(12,Math.round(cfg.steps/15)));
+  const cap=carrierCapacity(cfg,1),totalUes=cfg.sites.reduce((a,s)=>a+s.activeUes,0);
   const common=
     `[WORKFLOW — ${mode}]\n`+
     `[01 CONFIG] Snapshot captured: steps=${cfg.steps}, interval=${$("interval").value}ms, PRBs=${$("prbs").value}, loads=${cfg.loadEmb.toFixed(2)}/${cfg.loadUrl.toFixed(2)}/${cfg.loadIot.toFixed(2)}\n`+
-    `[02 RADIO] eMBB CA=${cfg.embCaMode}; URLLC=single carrier; eMTC=single carrier\n`+
-    `[03 CHANNEL] Path loss and mobility capacity factors calculated for all three slices\n`;
+    `[02 RADIO] eMBB eligible=${Math.round(cap.embEligiblePrbs)} PRBs/site (primary FDD=${cap.primaryPrbs}, supplemental FDD=${cap.supplementalFdd}, effective TDD DL=${Math.round(cap.effectiveTdd)}); URLLC/eMTC=${cap.primaryPrbs} single-carrier PRBs\n`+
+    `[03 MULTICELL] sites=10, activeUEs=${totalUes}, uniqueArea=${Math.round(cfg.miot.coveredAreaM2)}m², registered mIoT=${Math.ceil(cfg.miot.registered)}, unique access UEs=${Math.ceil(cfg.miot.seeking)}, attempts including retries=${Math.ceil(cfg.miot.attempts)}\n`+
+    `[04 CHANNEL] Path loss and mobility capacity factors calculated for all three slices\n`;
   if(mode==="PPO TRAIN + EVALUATE") return common+
-    `[04 INIT] Actor and critic initialized with seed=99173; traffic-training seeds=12345+iteration×137\n`+
-    `[05 SAMPLE] ${iterations} rollouts × ${rolloutLen} samples collected; state, action, old probability, reward and next state stored\n`+
-    `[06 ADVANTAGE] TD residuals and GAE returns calculated with gamma=${cfg.gamma.toFixed(3)} and lambda=0.95; advantages normalized\n`+
-    `[07 PPO UPDATE] 4 epochs applied; updates=${details.updates||0}, clip=${((details.clip||0)*100).toFixed(1)}%, criticLoss=${(details.critic||0).toFixed(4)}\n`+
-    `[08 SAFETY] Minimum URLLC share and normalized slice-share bounds projected after every candidate action\n`+
-    `[09 MATCHED EVAL] PPO and rule baseline evaluated for ${cfg.steps} steps with identical seed=24680\n`+
-    `[10 OUTPUT] KPI cards, allocation, comparison charts, diagnostics and trace rendered\n`+
-    `[11 COMPLETE] PPO workflow complete\n`;
+    `[05 INIT] Actor and critic initialized with seed=99173; traffic-training seeds=12345+iteration×137\n`+
+    `[06 SAMPLE] ${iterations} rollouts × ${rolloutLen} samples collected; state, action, old probability, reward and next state stored\n`+
+    `[07 ADVANTAGE] TD residuals and GAE returns calculated with gamma=${cfg.gamma.toFixed(3)} and lambda=0.95; advantages normalized\n`+
+    `[08 PPO UPDATE] 4 epochs applied; updates=${details.updates||0}, clip=${((details.clip||0)*100).toFixed(1)}%, criticLoss=${(details.critic||0).toFixed(4)}\n`+
+    `[09 SAFETY] Minimum URLLC share and normalized primary-carrier slice bounds projected after every candidate action\n`+
+    `[10 MATCHED EVAL] PPO and rule baseline evaluated for ${cfg.steps} steps with identical seed=24680\n`+
+    `[11 OUTPUT] KPI cards, allocation, comparison charts, diagnostics and trace rendered\n`+
+    `[12 COMPLETE] PPO workflow complete\n`;
   return common+
-    `[04 RULE POLICY] PPO training disabled; deterministic SLA checks select each allocation action\n`+
-    `[05 SAFETY] Minimum URLLC share and normalized slice-share bounds projected after every action\n`+
-    `[06 EVALUATE] Rule baseline evaluated for ${cfg.steps} steps with seed=24680${details.storedPpo?"; stored PPO evaluated on the same seed":""}\n`+
-    `[07 OUTPUT] KPI cards, allocation, comparison availability and trace rendered\n`+
-    `[08 COMPLETE] Rule-baseline workflow complete\n`;
+    `[05 RULE POLICY] PPO training disabled; deterministic SLA checks select each allocation action\n`+
+    `[06 SAFETY] Minimum URLLC share and normalized primary-carrier slice bounds projected after every action\n`+
+    `[07 EVALUATE] Rule baseline evaluated for ${cfg.steps} steps with seed=24680${details.storedPpo?"; stored PPO evaluated on the same seed":""}\n`+
+    `[08 OUTPUT] KPI cards, allocation, comparison availability and trace rendered\n`+
+    `[09 COMPLETE] Rule-baseline workflow complete\n`;
 }
 function appendLog(series,label,cfg,workflow){
   $("log").textContent=workflow+"\n"+channelTrace(cfg)+"\n[EVALUATION STEPS]\n";
@@ -1038,10 +1124,12 @@ $("stepBtn").onclick=runSingleStep;
 $("baseline").onclick=runBaseline;
 $("reset").onclick=resetAll;
 
+renderSiteControls();
+
 // Mark previous outputs stale whenever any configuration control changes.
 [
-  "bw","prbs","steps","interval","embCaMode","embFddCarriers","embTddCarriers","embChannelModel","embFrequency","embDistance","embSlowMobility","urllcChannelModel","urllcFrequency","urllcDistance","urllcSlowMobility","emtcChannelModel","emtcFrequency","emtcDistance","emtcSlowMobility","loadEmb","loadUrl","loadIot",
-  "latTarget","urlMin","embMin","iotMin","gamma","clip","lr","temp"
+  "bw","prbs","siteRadius","steps","interval","embCaMode","embFddCarriers","embTddCarriers","embTddDlPct","embChannelModel","embFrequency","embDistance","embSlowMobility","urllcChannelModel","urllcFrequency","urllcDistance","urllcSlowMobility","emtcChannelModel","emtcFrequency","emtcDistance","emtcSlowMobility","loadEmb","loadUrl","miotDensity","miotAccessPct","miotAvgAttempts",
+  "latTarget","urlMin","embMin","iotSlaProfile","gamma","clip","lr","temp"
 ].forEach(id=>{
   const el=$(id);
   if(!el) return;
@@ -1049,11 +1137,21 @@ $("reset").onclick=resetAll;
   el.addEventListener("change", markOutputsStale);
 });
 
-["embCaMode","embFddCarriers","embTddCarriers"].forEach(id=>{
+["embCaMode","embFddCarriers","embTddCarriers","embTddDlPct","prbs"].forEach(id=>{
   $(id).addEventListener("input",refreshEmbCaConfig);
   $(id).addEventListener("change",refreshEmbCaConfig);
 });
 refreshEmbCaConfig();
+
+document.querySelectorAll("#siteGrid input").forEach(el=>{
+  el.addEventListener("input",()=>{markOutputsStale();refreshMulticellSummary();});
+  el.addEventListener("change",()=>{markOutputsStale();refreshMulticellSummary();});
+});
+["siteRadius","miotDensity","miotAccessPct","miotAvgAttempts","iotSlaProfile"].forEach(id=>{
+  $(id).addEventListener("input",refreshMulticellSummary);
+  $(id).addEventListener("change",refreshMulticellSummary);
+});
+refreshMulticellSummary();
 
 ["embSlowMobility","urllcSlowMobility","emtcSlowMobility"].forEach(id=>{
   $(id).addEventListener("input",refreshSingleCarrierConfig);
@@ -1064,7 +1162,7 @@ refreshSingleCarrierConfig();
 initial();
 
 
-["loadEmb","loadUrl","loadIot"].forEach(id=>{
+["loadEmb","loadUrl"].forEach(id=>{
   const el=$(id), val=$(id+"Val");
   if(el&&val){
     const refresh=()=>val.textContent=parseFloat(el.value).toFixed(2);
