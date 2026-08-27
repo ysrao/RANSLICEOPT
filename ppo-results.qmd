@@ -1,0 +1,68 @@
+---
+title: "PPO-Based versus Rule-Based 6G RAN Slice Provisioning"
+subtitle: "Static demonstration results"
+author:
+  - "Rao Yenamandra (raosy@digitaltwinsim.com)"
+  - "Mubanga Nsofu (mubanga.nsofu@vodacom.co.za)"
+  - "Asokan Ram (asokan.ram@wrc.nc.org)"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    embed-resources: true
+    code-fold: true
+---
+
+## Purpose and evidence boundary
+
+This page reports a **functional synthetic demonstration** of hard slicing, tuned rule-based soft-slice provisioning, and a compact PPO policy. It is not carrier-field evidence and does not establish universal PPO superiority.
+
+The PPO implementation uses a custom categorical actor with architecture **13 → 64 → 64 → 9** and a critic with architecture **13 → 64 → 64 → 1**. Its 13 numerical state features are organized into six groups: demand pressure, active population, radio conditions, available resources, network context, and previous controller action.
+
+## Demonstration configuration
+
+| Parameter | Value |
+|---|---:|
+| Traffic profile | P6 PPO advantage — demonstration only |
+| Provisioning intervals | 2,400 × 10 ms |
+| Configured cells | 12 |
+| Calculated required cells | 9 |
+| Carrier frequency | 3.5 GHz |
+| PRBs per cell | 273 |
+| Registered IoT density | 1,000,000 devices/km² |
+| PPO training samples | 32,768 |
+| Registered favorable seed | 3080 |
+| Material-gain threshold | 2% |
+| Per-slice non-inferiority tolerance | −0.5 percentage point |
+
+## Hard, soft and PPO results
+
+![](paper_assets/hard_soft_ppo_bars.png){fig-alt="Bar charts comparing hard slicing, tuned soft slicing and PPO on mean reward and modeled resource compliance." width=100%}
+
+| Metric | Hard | Tuned soft | PPO |
+|---|---:|---:|---:|
+| Mean composite reward | 0.3384 | 0.4818 | **0.4952** |
+| PRB utilization | 34.79% | **36.65%** | 36.30% |
+| Jain fairness | 0.5290 | 0.5332 | **0.5333** |
+| eMBB resource compliance | 91.17% | 95.08% | **97.92%** |
+| URLLC resource-compliance proxy | 75.08% | 97.79% | **99.42%** |
+| IoT resource compliance | **100.00%** | **100.00%** | 99.96% |
+
+For seed 3080, PPO improves mean composite reward by **2.77% over tuned soft provisioning** and **46.32% over fixed hard slicing**. Relative to soft provisioning, eMBB and URLLC resource compliance improve by 2.83 and 1.63 percentage points. The IoT result changes by −0.04 percentage point, within the declared −0.5-point tolerance. The decision gate therefore returns **PASS — PPO preferred** for this particular run.
+
+## Seed sensitivity and safety decision
+
+The favorable result is not stable across every training seed. With seed 42, PPO produces reward 0.4048 versus 0.4818 for tuned soft provisioning, while eMBB resource compliance decreases by 31.33 percentage points. The platform consequently returns **UNDERPERFORMING** and recommends tuned soft provisioning.
+
+This adverse result is retained intentionally. It demonstrates why PPO must be compared with a strong rule-based policy for every evaluated configuration instead of being assumed superior.
+
+## URLLC latency limitation
+
+**URLLC latency is not explicitly evaluated.** Without an interconnection to a live gNB or RIC data path exposing MAC-queue residence, scheduling timestamps, HARQ/retransmission delay, and packet-completion time, the platform cannot measure real-time MAC scheduling delay.
+
+The demonstration assumes available URLLC PRBs are sufficient and PRB scarcity is not the binding source of delay. The reported URLLC percentage is therefore a scheduling-interval **resource-compliance proxy**, not measured packet latency or proof of an end-to-end URLLC SLA.
+
+## Minimum next evaluation
+
+A defensible efficacy claim requires a frozen evaluation protocol with multiple paired seeds, held-out traffic, confidence intervals, load and topology sweeps, feature ablation, failure scenarios, and carrier RIC trace replay or a calibrated RAN simulator. Until that evidence exists, this page should be interpreted as a transparent platform demonstration.
+
