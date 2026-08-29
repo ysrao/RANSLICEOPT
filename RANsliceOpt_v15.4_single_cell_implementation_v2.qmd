@@ -1,0 +1,198 @@
+---
+title: "RANsliceOpt AI v15.4: Single-Cell PPO Implementation v2"
+subtitle: "eMBB FDD+TDD spectrum, single-carrier URLLC and mIoT/eMTC"
+author: "RANsliceOpt AI"
+date: "August 25, 2026"
+format:
+  typst:
+    papersize: us-letter
+    margin:
+      x: 0.72in
+      y: 0.45in
+    fontsize: 8.2pt
+    toc: false
+    columns: 1
+    mainfont: "Helvetica"
+execute:
+  echo: false
+---
+
+## Executive summary
+
+This report defines a single-cell modification of RANsliceOpt AI v15.4 and reports reproducible outcomes for three controller modes: one PPO update (single step), a 120-step PPO Markov decision process (MDP), and a deterministic rule-based controller with PPO disabled. The radio abstraction gives eMBB two frequency-division-duplex (FDD) component carriers plus one time-division-duplex (TDD) component carrier. URLLC and mIoT/eMTC each remain single-carrier services on the shared primary carrier. The phrase “FDD+TDMA” in the requested configuration is implemented here as aggregate FDD+TDD downlink spectrum; TDMA-style packet scheduling remains the responsibility of the MAC scheduler and is not simulated by the slice controller.
+
+The v15.4 design makes two important corrections. First, real URLLC packet latency is a MAC-scheduler quantity. Because this browser model has no MAC connection, latency is reported as **UNVERIFIABLE**, is excluded from the PPO state objective and reward, and is never presented as a gain. PPO controls only the URLLC resource envelope. Second, a learned policy is not deployed merely because it completed training. Its matched evaluation must improve at least one controllable KPI and must not degrade any other controllable KPI relative to the rule controller. A policy failing this gate is explicitly marked **REJECTED**, with the rule result retained.
+
+For the v2 reference run, full PPO matched the rule controller on eMBB throughput but reduced mIoT service from 1.1000 to 1.0865, Jain fairness from 0.6362 to 0.5634, controllable efficiency from 1.1975 to 1.1928, and composite reward from 0.9090 to 0.8908. The PPO candidate was therefore rejected. The single-step PPO and rule controllers both selected Hold allocation at 77% / 3% / 20% and produced identical KPIs, so the single-step candidate was also not accepted: equality is not an improvement.
+
+| Bottom-line result | Outcome |
+|---|---:|
+| Rule-only controller | Retained |
+| PPO single step | No improvement; not accepted |
+| PPO MDP candidate | Rejected: four controllable KPIs degraded |
+| Real URLLC latency | Unverifiable without MAC telemetry |
+
+```{=typst}
+#pagebreak()
+```
+
+## 1. Single-cell radio and slice configuration
+
+The cell has 273 PRBs per carrier. eMBB can use the primary FDD carrier, one supplemental FDD carrier, and the effective downlink portion of one TDD carrier. With a 70% TDD downlink fraction, the eMBB-eligible capacity is
+
+$$
+C_{\mathrm{eMBB}}=273+273+0.70(273)=737.1\ \text{PRB-equivalents}.
+$$
+
+URLLC and mIoT/eMTC do not aggregate the supplemental carriers in this model. They share the 273-PRB primary carrier through bounded soft-slice envelopes. The primary-carrier shares sum to one. The seven discrete actions hold the allocation or move five percentage points between a pair of slices. Every candidate is normalized, bounded between 1% and 96%, and projected to preserve the configured 3% minimum URLLC envelope.
+
+| Configuration item | Reference value |
+|---|---:|
+| Cells | 1 |
+| PRBs per carrier | 273 |
+| eMBB spectrum | 2 FDD CC + 1 TDD CC |
+| Effective TDD downlink | 70% |
+| Total eMBB-eligible capacity | 737.1 PRB-equivalents |
+| URLLC / mIoT spectrum | One shared primary carrier each |
+| Initial shares: eMBB / URLLC / mIoT | 77% / 3% / 20% |
+| Offered loads: eMBB / URLLC / mIoT | 0.90 / 0.45 / 0.17 derived |
+| URLLC minimum envelope | 3% |
+| eMBB throughput floor | 0.55 |
+| mIoT managed target | 0.99 |
+| MDP horizon | 120 steps |
+
+The channel abstractions are UMa at 3.5 GHz and 200 m for eMBB, UMi at 3.5 GHz and 100 m for URLLC, and RMa at 0.7 GHz and 500 m for eMTC. For every slice, total path loss includes the mobility margin and feeds a per-PRB link budget. With carrier transmit power $P_{tx}$ spread equally across $N_{PRB}$ PRBs, combined antenna gain $G$, receiver noise figure $NF$, per-PRB bandwidth $B_{PRB}$, and interference margin $M_I$,
+
+$$
+P_{rx,PRB}=P_{tx}-10\log_{10}(N_{PRB})+G-PL_{total},
+$$
+
+$$
+N_{PRB}=-174+10\log_{10}(B_{PRB})+NF,
+\qquad
+\mathrm{SINR}_{dB}=P_{rx,PRB}-N_{PRB}-M_I.
+$$
+
+The bounded spectral efficiency $\log_2(1+10^{\mathrm{SINR}_{dB}/10})$ scales the eMBB, URLLC, and mIoT service capacities. The rule controller and PPO therefore respond to the configured link conditions for every slice. URLLC service capacity is not a synthetic packet-latency measurement.
+
+The browser defaults are 46 dBm transmit power per carrier, 15 dB combined antenna gain, 7 dB receiver noise figure, and 15 dB interference margin. All four values are explicit controls. Changing any of them invalidates the displayed run until the controller is rerun.
+
+| Slice | Total path loss | SINR | Spectral efficiency |
+|---|---:|---:|---:|
+| eMBB | 124.32 dB | 8.68 dB | 3.068 b/s/Hz |
+| URLLC | 105.38 dB | 27.62 dB | 7.400 b/s/Hz |
+| eMTC | 102.57 dB | 30.43 dB | 7.400 b/s/Hz |
+
+The default URLLC envelope is 3%, not 25%. Its normalized small-packet service capacity uses a scale factor of 15, so the default 3% envelope satisfies the reference load under the default high-SINR link. This is an engineering normalization of offered service capacity, not a latency conversion. If SINR falls or URLLC load rises enough that the service ratio drops below one, the controller may increase the envelope in 5-percentage-point actions.
+
+### Controllable state and reward
+
+The actor receives seven inputs: eMBB, URLLC, and mIoT offered load; SINR-derived URLLC service capacity; eMBB throughput index; Jain fairness; and controllable efficiency. The actor and critic each use two 64-unit hidden layers. The actor outputs probabilities for seven allocation actions, while the critic estimates discounted return.
+
+The reward is
+
+$$
+R=0.40T_{\mathrm{eMBB}}+0.25F+0.15S_{\mathrm{mIoT}}+0.20E-P,
+$$
+
+where $P$ penalizes shortfall below the eMBB and enabled mIoT thresholds. No latency term appears in either reward or efficiency.
+
+```{=typst}
+#pagebreak()
+```
+
+## 2. Safety, acceptance, and controller modes
+
+### Hard action safety
+
+Reward penalties alone do not enforce thresholds. Before an action can be sampled or applied, v15.4 evaluates all seven post-action allocations. Unsafe candidates receive zero probability. Safety covers the eMBB floor, the enabled mIoT target, the minimum URLLC resource envelope, slice bounds, and resource conservation. If no local five-percent action is feasible, a 0.5-percentage-point simplex search finds the feasible allocation closest to the PPO intent. If no feasible allocation exists, execution stops without applying an unsafe PPO allocation.
+
+This guard does not claim to protect real URLLC packet latency. A true latency guard would require MAC measurements such as enqueue time, head-of-line delay, scheduling delay, retransmissions, and successful-delivery time. With no such interface, the only defensible output is `UNVERIFIABLE — NO MAC TELEMETRY`.
+
+### Deployment acceptance gate
+
+Safety asks whether a PPO action is allowed. Acceptance asks whether the learned controller is useful. PPO and the rule controller are evaluated with identical seed 24680 and the same 120-step traffic sequence. Tail averages use the final 25% of samples. Let $\Delta_k=K_k^{PPO}-K_k^{rule}$ for eMBB throughput, mIoT service, fairness, efficiency, and reward. The candidate is published only if
+
+$$
+\left(\exists k:\Delta_k>10^{-4}\right)\ \land\
+\left(\forall k:\Delta_k\geq-10^{-9}\right).
+$$
+
+Consequently, equal performance is not advertised as an improvement, and a trade that raises one KPI while lowering another is rejected. This is deliberately conservative. It is an acceptance policy, not a modification or clipping of measured PPO values.
+
+### Three execution modes
+
+**PPO single step.** A seeded actor samples one safe action for the current load, records the old probability, computes a temporal-difference advantage, and performs four actor/critic update epochs. A rule action is evaluated on the identical load. The candidate is displayed only if it passes the same non-degradation rule.
+
+**PPO MDP.** Training uses 8 iterations for the 120-step configuration, a rollout length of 64, generalized advantage estimation with $\gamma=0.97$ and $\lambda=0.95$, and four update epochs. Evaluation is deterministic and uses the maximum safe policy probability.
+
+**No PPO / rule based.** PPO training and updating are disabled. The controller holds unless SINR-derived URLLC service is below offered demand, mIoT is below its target, or eMBB is below its floor; it then requests the corresponding five-percent corrective transfer. The URLLC minimum-share projection remains active. This rule controller is a reference policy, not a latency-aware MAC scheduler.
+
+```{=typst}
+#pagebreak()
+```
+
+## 3. Reproducible results
+
+The following values were produced directly from the v15.4 JavaScript algorithms with fixed initialization seed 99173, training seeds $12345+137i$, matched evaluation seed 24680, and single-step traffic seed 77777. Full-run metrics are averages over the last 30 of 120 evaluation steps.
+
+### Single-step result
+
+The sampled loads were 0.9525 eMBB, 0.4345 URLLC, and 0.1364 mIoT. Both controllers selected Hold allocation and retained shares of 77% / 3% / 20%.
+
+| Single-step KPI | Rule only | PPO candidate | Difference |
+|---|---:|---:|---:|
+| eMBB throughput index | 1.2500 | 1.2500 | 0.0000 |
+| mIoT service ratio | 1.1000 | 1.1000 | 0.0000 |
+| Jain fairness | 0.5738 | 0.5738 | 0.0000 |
+| Controllable efficiency | 1.1975 | 1.1975 | 0.0000 |
+| Composite reward | 0.8934 | 0.8934 | 0.0000 |
+| Real URLLC latency | Unverifiable | Unverifiable | N/A |
+
+**Decision:** PPO single step was not accepted because it improved no controllable KPI. The result is equality, not a gain.
+
+### PPO-MDP versus no-PPO rule result
+
+| Tail-average KPI | Rule only | PPO candidate | PPO minus rule |
+|---|---:|---:|---:|
+| eMBB throughput index | 1.2500 | 1.2500 | 0.0000 |
+| mIoT service ratio | 1.1000 | 1.0865 | -0.0135 |
+| Jain fairness | 0.6362 | 0.5634 | -0.0728 |
+| Controllable efficiency | 1.1975 | 1.1928 | -0.0047 |
+| Composite reward | 0.9090 | 0.8908 | -0.0182 |
+| Real URLLC latency | Unverifiable | Unverifiable | N/A |
+
+The rule controller began at 77% / 3% / 20%, increased URLLC once when its SINR-derived service ratio fell below one, and ended at 72% / 8% / 20%. Its action sequence changed twice (Hold to transfer, then back to Hold). The PPO candidate ended at 77% / 3% / 20% but changed action 93 times. Relative to the rule tail average, PPO degraded mIoT service, fairness, efficiency, and reward; the deployment gate therefore rejected it and retained the rule output.
+
+Training itself was genuine and completed 2,048 actor/critic sample updates. The mean clip fraction was 13.82%, mean absolute normalized advantage was 0.7807, and mean critic loss was 0.5134. Completion of PPO training is evidence that optimization ran; it is not evidence that the resulting policy is superior.
+
+```{=typst}
+#pagebreak()
+```
+
+## 4. Interpretation, limitations, and implementation conclusion
+
+The result illustrates why v15.4 separates training, safety, and acceptance. The safety layer prevented forbidden resource allocations and preserved the URLLC minimum envelope, but safety alone could not ensure that PPO outperformed a simple rule. The learned policy remained feasible but degraded four evaluated KPIs. The acceptance layer correctly rejected it.
+
+The rule result must also be interpreted carefully. Its eMBB and mIoT values meet the configured simulation thresholds in this run, and its URLLC resource envelope remains above the 3% minimum. It does not prove real URLLC latency compliance. Nor is the rule controller guaranteed to find a feasible configuration under every possible offered load: it proposes a corrective action, while the PPO path has the more exhaustive post-action feasibility mask and projection. A production comparison should subject both controllers to the same final feasibility validator.
+
+The browser abstraction has additional limitations. PRB-equivalents represent aggregate capacity rather than exact slots, symbols, MCS selections, spatial layers, HARQ processes, or UE-specific scheduling. The mIoT service ratio is an engineering abstraction, not a measured random-access success probability. Results are deterministic for the stated seeds and configuration but are not field measurements. Broader load and channel sweeps are needed before concluding that the rule controller generally dominates PPO.
+
+For a deployable next stage, a single-cell gNB adapter should provide aggregate offered load and measured service outcomes to the slice-envelope controller while leaving packet scheduling inside MAC. If latency is later evaluated, the adapter must export timestamp-derived latency distributions and deadline-miss rates. Only then may latency enter validation, and even then the MAC scheduler—not PPO—must retain final scheduling authority.
+
+### Final implementation position
+
+The v15.4 single-cell implementation therefore supports the requested modes without overstating the learned controller:
+
+1. eMBB receives aggregate FDD+TDD capacity; URLLC and mIoT remain single-carrier slices.
+2. PPO single-step and multi-step MDP operation use the same constrained action mechanism.
+3. Rule-only operation never trains or updates PPO.
+4. Real URLLC latency is explicitly unverifiable without MAC telemetry and contributes no artificial reward or gain.
+5. Only a safe, matched, non-degrading PPO improvement may replace the rule controller.
+6. In the reported reference run, neither PPO candidate qualified; the rule result is the retained outcome.
+
+This is the intended bottom line: PPO is an optional improvement mechanism, not a result that must be made to look better. When it fails the acceptance test, the system says so and keeps the deterministic controller.
+
+## Reproducibility record
+
+Artifact version: v15.4 single-cell paper v2; cell count: 1; actor/critic: 7–64–64–7 and 7–64–64–1; PPO clip: 0.2; learning rate: 0.035; temperature: 0.8; evaluation horizon: 120; tail window: 30; actor seed: 99173; matched evaluation seed: 24680; latency source: unavailable.

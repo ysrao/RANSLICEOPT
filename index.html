@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>RANsliceOpt AI v15.3 — Multicell PPO + Multi-Step MDP</title>
+<title>RANsliceOpt AI v15.4 — SLA-Safe Multicell PPO + Multi-Step MDP</title>
 <style>
 :root{
   --bg:#07111f; --panel:#0d1b2a; --panel2:#12263a; --text:#eaf2ff; --muted:#9fb3c8;
@@ -116,7 +116,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 </head>
 <body>
 <header>
-  <h1>RANsliceOpt AI v15.3 — 10-Site Multicell Slicing with PPO + Multi-Step MDP</h1>
+  <h1>RANsliceOpt AI v15.4 — 10-Site Multicell Slicing with SLA-Safe PPO + Multi-Step MDP</h1>
   <div class="subtitle">Full PPO artifact with per-site UE load, aggregate eMBB FDD/TDD capacity, single-carrier URLLC and mIoT/eMTC, and retry-aware mIoT access targets.</div>
 </header>
 <div class="wrap">
@@ -125,6 +125,11 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
     <h2>10-Site Cluster & Traffic</h2>
     <div class="row"><label>System bandwidth (MHz)</label><select id="bw"><option>50</option><option selected>100</option><option>200</option></select></div>
     <div class="row"><label>PRBs per carrier / site</label><input id="prbs" type="number" value="273" min="50" max="1000"></div>
+    <div class="row"><label>gNB transmit power / carrier (dBm)</label><input id="txPowerDbm" type="number" value="46" min="0" max="70" step="1"></div>
+    <div class="row"><label>Combined antenna gain (dB)</label><input id="antennaGainDb" type="number" value="15" min="-20" max="50" step="1"></div>
+    <div class="row"><label>Receiver noise figure (dB)</label><input id="noiseFigureDb" type="number" value="7" min="0" max="30" step="0.5"></div>
+    <div class="row"><label>Interference margin (dB)</label><input id="interferenceMarginDb" type="number" value="15" min="0" max="40" step="0.5"></div>
+    <div class="small">Per-slice SINR uses equal carrier power per PRB, configured bandwidth and PRBs, thermal noise at 290 K, the slice path loss/mobility margin, and the interference margin.</div>
     <div class="row"><label>Site coverage radius (m)</label><input id="siteRadius" type="number" value="200" min="20" max="5000" step="10"></div>
     <details class="site-details" open><summary>Site locations and active UEs (10)</summary><div class="small" style="margin-top:6px">Each row: site · X metres · Y metres · active UEs</div><div id="siteGrid" class="site-grid"></div></details>
     <div id="clusterDemandSummary" class="derived-box">Calculating cluster demand…</div>
@@ -153,7 +158,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
     <div class="row"><label>eMTC carrier frequency (GHz)</label><input id="emtcFrequency" type="number" value="0.7" min="0.1" max="100" step="0.1"></div>
     <div class="row"><label>eMTC representative distance (m)</label><input id="emtcDistance" type="number" value="500" min="1" max="10000" step="1"></div>
     <div class="row"><label>eMTC slow mobility (%)</label><input id="emtcSlowMobility" type="number" value="80" min="0" max="100" step="1"></div>
-    <div class="small">URLLC and eMTC remain single-carrier slices; carrier aggregation applies only to eMBB. Path loss uses a transparent log-distance abstraction plus a mobility margin and is reported in the trace.</div>
+    <div class="small">URLLC and eMTC remain single-carrier slices; carrier aggregation applies only to eMBB. Each slice's path loss and mobility margin feed its link-budget SINR and SINR-derived spectral efficiency.</div>
     <hr>
     <h2>Slice Demand</h2>
     <div class="row"><label>eMBB load</label><div class="range-wrap"><input id="loadEmb" type="range" min="0.2" max="1.5" value="0.9" step="0.05"><div class="range-scale"><span>0.20</span><span class="cur" id="loadEmbVal">0.90</span><span class="max">1.50</span></div></div></div>
@@ -163,8 +168,9 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
     <div class="row"><label>Average attempts / UE</label><select id="miotAvgAttempts"><option value="1">No retries — 1.0</option><option value="1.5" selected>Low retries — 1.5</option><option value="2">Moderate — 2.0</option><option value="3">High — 3.0</option><option value="5">Severe — 5.0</option></select></div>
     <hr>
     <h2>SLA Constraints</h2>
-    <div class="row"><label>URLLC latency target (ms)</label><input id="latTarget" type="number" value="2" min="0.5" step="0.5"></div>
-    <div class="row"><label>URLLC min PRB share (%)</label><input id="urlMin" type="number" value="20" min="5" max="80"></div>
+    <div class="row"><label>URLLC latency SLA (reference only)</label><input id="latTarget" type="number" value="2" min="0.5" step="0.5"></div>
+    <div class="row"><label>URLLC min PRB share (%)</label><input id="urlMin" type="number" value="3" min="1" max="80" step="1"></div>
+    <div class="small">Real URLLC latency requires MAC-scheduler telemetry and is unverifiable here. The value above is retained only as an SLA reference; it is not used by PPO. PPO enforces only the minimum URLLC resource envelope.</div>
     <div class="row"><label>eMBB min throughput index</label><input id="embMin" type="number" value="0.55" min="0.1" max="1.0" step="0.05"></div>
     <div class="row"><label>mIoT access SLA profile</label><select id="iotSlaProfile"><option value="best-effort">Best effort — monitor only</option><option value="managed-95">Managed target — 95%</option><option value="managed-99" selected>Managed target — 99%</option><option value="contract-999">Contractual target — 99.9%</option></select></div>
     <hr>
@@ -190,7 +196,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
     <div class="status config-summary"><strong>Multicell / mIoT:</strong> <span id="multiCellSummary">Calculating 10-site demand…</span></div>
     <div class="cards">
       <div class="card"><div class="k">Reward</div><div class="v" id="reward">0.000</div></div>
-      <div class="card"><div class="k">URLLC Latency</div><div class="v" id="lat">—</div></div>
+      <div class="card"><div class="k">Real URLLC Latency</div><div class="v" id="lat">UNVERIFIABLE</div></div>
       <div class="card"><div class="k">eMBB Throughput</div><div class="v" id="thr">—</div></div>
       <div class="card"><div class="k">Jain Fairness</div><div class="v" id="fair">—</div></div>
       <div class="card"><div class="k">Efficiency Index</div><div class="v" id="eff">—</div></div>
@@ -208,9 +214,9 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
           </tbody>
         </table>
         <div style="margin-top:14px">
-          <div class="small">eMBB</div><div class="bar"><span id="bEmb" style="width:50%"></span></div>
-          <div class="small" style="margin-top:8px">URLLC</div><div class="bar"><span id="bUrl" style="width:25%"></span></div>
-          <div class="small" style="margin-top:8px">mIoT/eMTC</div><div class="bar"><span id="bIot" style="width:25%"></span></div>
+          <div class="small">eMBB</div><div class="bar"><span id="bEmb" style="width:77%"></span></div>
+          <div class="small" style="margin-top:8px">URLLC</div><div class="bar"><span id="bUrl" style="width:3%"></span></div>
+          <div class="small" style="margin-top:8px">mIoT/eMTC</div><div class="bar"><span id="bIot" style="width:20%"></span></div>
           <div class="alloc-scale" aria-label="Allocated PRB share scale">
             <span>0%</span><span>20%</span><span>40%</span><span>60%</span><span>80%</span><span>100%</span>
           </div>
@@ -221,7 +227,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
         <h2>MDP State</h2>
         <div class="small">State vector</div>
         <div id="stateVec" style="margin:8px 0 12px;font-family:ui-monospace,monospace;font-size:13px">—</div>
-        <span class="badge">load</span><span class="badge">latency</span><span class="badge">throughput</span><span class="badge">fairness</span><span class="badge">efficiency</span>
+        <span class="badge">load</span><span class="badge">SINR-derived URLLC service</span><span class="badge">throughput</span><span class="badge">fairness</span><span class="badge">efficiency</span>
         <hr>
         <div class="small">Selected PPO action</div>
         <div id="action" style="font-weight:700;margin-top:6px">—</div>
@@ -236,14 +242,14 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 
     <section class="panel" style="margin-top:14px">
       <h2>After-Training Results: PPO vs Rule-Based Baseline</h2>
-      <div class="small" style="margin-bottom:10px">PPO and rule-based results are independent runs using the same selected configuration and identical traffic/noise sequence. The Rule Baseline never trains or updates PPO. When available, the blue curve is the stored trained PPO policy evaluated on the same traffic. Values are averages over the final 25% of evaluation steps.</div>
+      <div class="small" style="margin-bottom:10px">PPO and rule-based candidates use the same configuration and traffic/noise sequence. A PPO result is published only when at least one controllable KPI improves and no controllable KPI degrades over the final 25% evaluation window. Otherwise PPO is marked REJECTED and the rule result is retained. Real latency is excluded.</div>
       <table>
         <thead>
           <tr><th>Output KPI</th><th>Without PPO / Rule-Based</th><th>With PPO</th><th>PPO Gain vs Rule-Based</th></tr>
         </thead>
         <tbody>
           <tr><td>eMBB throughput index</td><td id="cmpEmbBase">—</td><td id="cmpEmbPpo">—</td><td id="gainEmb">—</td></tr>
-          <tr><td>URLLC latency (ms)</td><td id="cmpUrlBase">—</td><td id="cmpUrlPpo">—</td><td id="gainUrl">—</td></tr>
+          <tr><td>Real URLLC latency</td><td id="cmpUrlBase">—</td><td id="cmpUrlPpo">—</td><td id="gainUrl">—</td></tr>
           <tr><td>eMTC/mIoT service ratio</td><td id="cmpIotBase">—</td><td id="cmpIotPpo">—</td><td id="gainIot">—</td></tr>
           <tr><td>Jain fairness</td><td id="cmpFairBase">—</td><td id="cmpFairPpo">—</td><td id="gainFair">—</td></tr>
           <tr><td>Efficiency index</td><td id="cmpEffBase">—</td><td id="cmpEffPpo">—</td><td id="gainEff">—</td></tr>
@@ -256,7 +262,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
           <canvas id="chartEmb" width="420" height="210"></canvas>
         </div>
         <div class="metricbox">
-          <h3>URLLC Output</h3>
+          <h3>URLLC Latency Availability</h3>
           <canvas id="chartUrl" width="420" height="210"></canvas>
         </div>
         <div class="metricbox">
@@ -273,7 +279,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 
     <section class="panel" style="margin-top:14px">
       <h2>PPO Training Diagnostics</h2>
-      <div class="small">Actor network: 7 inputs → 64 → 64 → 7 actions. Critic: 7 inputs → 64 → 64 → 1 value. PPO uses the same stored state-action sample for old/new probability ratio.</div>
+      <div class="small">Actor inputs: three offered loads, SINR-derived URLLC service capacity, eMBB throughput, fairness, and controllable efficiency. Real URLLC latency is excluded. Actor: 7 → 64 → 64 → 7 actions; critic: 7 → 64 → 64 → 1.</div>
       <table style="margin-top:10px">
         <tbody>
           <tr><td>Training updates</td><td id="diagUpdates">—</td><td>Mean clip fraction</td><td id="diagClip">—</td></tr>
@@ -349,13 +355,14 @@ const actions = [
   {name:"Shift 5% eMBB → mIoT", d:[-0.05,0,0.05]},
   {name:"Shift 5% URLLC → eMBB", d:[0.05,-0.05,0]},
   {name:"Shift 5% mIoT → eMBB", d:[0.05,0,-0.05]},
-  {name:"Shift 5% mIoT → URLLC", d:[0,-0.05,0.05]},
-  {name:"Shift 5% URLLC → mIoT", d:[0,0.05,-0.05]}
+  {name:"Shift 5% URLLC → mIoT", d:[0,-0.05,0.05]},
+  {name:"Shift 5% mIoT → URLLC", d:[0,0.05,-0.05]}
 ];
 
-let shares=[0.55,0.25,0.20], kpiHistory=[], comparison={baseline:[],ppo:[]}, t=0;
+const INITIAL_SHARES=[0.77,0.03,0.20], MIN_SLICE_SHARE=0.01, URLLC_CAPACITY_SCALE=15;
+let shares=[...INITIAL_SHARES], kpiHistory=[], comparison={baseline:[],ppo:[]}, t=0;
 let liveActor=null, liveCritic=null, liveRnd=null, liveDiag={updates:0,clip:0,adv:0,critic:0};
-let liveBaselineShares=[0.55,0.25,0.20], liveBaseHistory=[];
+let liveBaselineShares=[...INITIAL_SHARES], liveBaseHistory=[];
 let outputsStale=false;
 
 function markOutputsStale(){
@@ -388,13 +395,13 @@ function randnFrom(rnd){
   return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
 }
 function normalizeShares(s){
-  let x=s.map(v=>clamp(v,0.08,0.84)),sum=x.reduce((a,b)=>a+b,0);
+  let x=s.map(v=>clamp(v,MIN_SLICE_SHARE,0.96)),sum=x.reduce((a,b)=>a+b,0);
   return x.map(v=>v/sum);
 }
 function enforceShares(s,cfg){
   let x=[...s];
   if(x[1]<cfg.urlMin){
-    let d=cfg.urlMin-x[1]; x[1]=cfg.urlMin; x[0]=Math.max(0.08,x[0]-d);
+    let d=cfg.urlMin-x[1]; x[1]=cfg.urlMin; x[0]=Math.max(MIN_SLICE_SHARE,x[0]-d);
   }
   return normalizeShares(x);
 }
@@ -417,32 +424,92 @@ function channelEstimates(cfg){
     emtc:slicePathLoss(cfg.emtcChannelModel,cfg.emtcFrequency,cfg.emtcDistance,cfg.emtcSlowMobility)
   };
 }
-function pathLossCapacityFactor(pathLossDb){
-  return clamp(Math.pow(10,-(pathLossDb-105)/40),0.55,1.20);
+function sliceLinkBudget(path,cfg){
+  const prbBandwidthHz=cfg.bandwidthMhz*1e6/Math.max(1,cfg.prbs);
+  const txPerPrbDbm=cfg.txPowerDbm-10*Math.log10(Math.max(1,cfg.prbs));
+  const rxPerPrbDbm=txPerPrbDbm+cfg.antennaGainDb-path.totalDb;
+  const noisePerPrbDbm=-174+10*Math.log10(prbBandwidthHz)+cfg.noiseFigureDb;
+  const sinrDb=rxPerPrbDbm-noisePerPrbDbm-cfg.interferenceMarginDb;
+  const sinrLinear=Math.pow(10,sinrDb/10);
+  const spectralEfficiency=clamp(Math.log2(1+sinrLinear),0.10,7.40);
+  // Normalize at 10 dB so existing dimensionless service indices retain
+  // approximately the same scale while responding monotonically to SINR.
+  const capacityFactor=clamp(spectralEfficiency/Math.log2(11),0.10,1.50);
+  return {prbBandwidthHz,txPerPrbDbm,rxPerPrbDbm,noisePerPrbDbm,sinrDb,spectralEfficiency,capacityFactor};
 }
 function metrics(ld,sh,cfg){
   const ch=channelEstimates(cfg);
+  const links={emb:sliceLinkBudget(ch.emb,cfg),urllc:sliceLinkBudget(ch.urllc,cfg),emtc:sliceLinkBudget(ch.emtc,cfg)};
   const carriers=carrierCapacity(cfg,sh[0]);
   const embPrimaryEquivalents=carriers.embAllocatedPrbs/Math.max(1,cfg.prbs);
-  const embCap=embPrimaryEquivalents*1.55*pathLossCapacityFactor(ch.emb.totalDb);
-  const urlCap=sh[1]*1.2*pathLossCapacityFactor(ch.urllc.totalDb);
-  const iotCap=sh[2]*1.8*pathLossCapacityFactor(ch.emtc.totalDb);
+  const embCap=embPrimaryEquivalents*1.55*links.emb.capacityFactor;
+  // URLLC demand is a normalized small-packet load, not an eMBB throughput
+  // load. This scale makes a few high-SINR PRBs useful without claiming latency.
+  const urlCap=sh[1]*URLLC_CAPACITY_SCALE*links.urllc.capacityFactor;
+  const iotCap=sh[2]*1.8*links.emtc.capacityFactor;
   const emb=clamp(embCap/(ld[0]+0.22),0,1.25);
-  const lat=0.65+3.4*Math.pow(ld[1]/(urlCap+0.12),1.35);
+  const urlSrv=clamp(urlCap/(ld[1]+0.12),0,1.25);
   const iotSrv=clamp(iotCap/(ld[2]+0.12),0,1.1);
   const fair=clamp(1-0.52*(Math.max(...sh)-Math.min(...sh))-0.08*Math.abs(ld[0]-ld[1]),0.55,1);
-  const eff=clamp((0.55*emb+0.25*iotSrv+0.20*(1/Math.max(lat,0.5)))/1.05,0,1.2);
-  return {emb,lat,iotSrv,fair,eff};
+  // Efficiency contains only outputs this abstraction can calculate. Real
+  // URLLC packet latency remains unavailable without MAC telemetry.
+  const eff=clamp(0.65*emb+0.35*iotSrv,0,1.2);
+  return {emb,lat:null,urlSrv,iotSrv,fair,eff,urllcShare:sh[1],sinr:links};
 }
 function rewardFnCfg(m,cfg){
   let r=0.40*clamp(m.emb,0,1)+0.25*m.fair+0.15*clamp(m.iotSrv,0,1)+0.20*clamp(m.eff,0,1);
   let p=0;
-  if(m.lat>cfg.latTarget)p+=0.55*Math.min(2,(m.lat-cfg.latTarget)/cfg.latTarget);
   if(m.emb<cfg.embMin)p+=0.30*(cfg.embMin-m.emb);
   if(m.iotSrv<cfg.iotMin)p+=0.25*(cfg.iotMin-m.iotSrv);
   return r-p;
 }
-function stateVector(ld,m){ return [ld[0],ld[1],ld[2],m.lat/5,m.emb,m.fair,m.eff]; }
+function slaViolations(m,cfg){
+  const violations=[];
+  if(m.urllcShare+1e-9<cfg.urlMin) violations.push(`URLLC PRB share ${(100*m.urllcShare).toFixed(1)}% < ${(100*cfg.urlMin).toFixed(1)}% minimum envelope`);
+  if(m.emb+1e-9<cfg.embMin) violations.push(`eMBB throughput ${m.emb.toFixed(3)} < ${cfg.embMin}`);
+  if(cfg.iotMin>0 && m.iotSrv+1e-9<cfg.iotMin) violations.push(`mIoT service ${m.iotSrv.toFixed(3)} < ${cfg.iotMin}`);
+  return violations;
+}
+function slaFeasible(m,cfg){ return slaViolations(m,cfg).length===0; }
+function maskedPolicy(probs,mask){
+  const p=probs.map((v,i)=>mask[i]?v:0),sum=p.reduce((a,b)=>a+b,0);
+  return sum>0?p.map(v=>v/sum):p;
+}
+function globallyFeasibleShares(ld,desired,cfg){
+  let best=null,bestCost=Infinity;
+  // A 0.5 percentage-point simplex search is used only when all seven local
+  // PPO actions are unsafe. Returned allocations are rechecked without rounding.
+  for(let emb=MIN_SLICE_SHARE;emb<=0.960001;emb+=0.005){
+    for(let url=Math.max(MIN_SLICE_SHARE,cfg.urlMin);url<=0.960001;url+=0.005){
+      const iot=1-emb-url;
+      if(iot<MIN_SLICE_SHARE-1e-9||iot>0.96+1e-9) continue;
+      const sh=[emb,url,iot],m=metrics(ld,sh,cfg);
+      if(!slaFeasible(m,cfg)) continue;
+      const distance=sh.reduce((s,v,i)=>s+(v-desired[i])**2,0);
+      const cost=distance-1e-6*rewardFnCfg(m,cfg);
+      if(cost<bestCost){bestCost=cost;best={shares:sh,metrics:m};}
+    }
+  }
+  return best;
+}
+function selectSafePpoAction(probs,ld,sh,cfg,rnd=null){
+  const candidates=actions.map((action,i)=>{
+    const shares=enforceShares(sh.map((v,j)=>v+action.d[j]),cfg);
+    const m=metrics(ld,shares,cfg);
+    return {action:i,shares,metrics:m,feasible:slaFeasible(m,cfg)};
+  });
+  const mask=candidates.map(x=>x.feasible),safeProbs=maskedPolicy(probs,mask);
+  if(safeProbs.some(x=>x>0)){
+    const action=rnd?sampleProb(safeProbs,rnd):argmax(safeProbs);
+    return {...candidates[action],probs:safeProbs,mask,projected:false};
+  }
+  const intent=rnd?sampleProb(probs,rnd):argmax(probs);
+  const projected=globallyFeasibleShares(ld,candidates[intent].shares,cfg);
+  if(projected) return {action:intent,...projected,probs,mask:Array(actions.length).fill(true),projected:true};
+  const current=slaViolations(metrics(ld,sh,cfg),cfg).join("; ");
+  throw new Error(`No SLA-feasible allocation exists for this traffic state${current?`: ${current}`:""}. PPO stopped without applying an unsafe action.`);
+}
+function stateVector(ld,m){ return [ld[0],ld[1],ld[2],m.urlSrv||0,m.emb,m.fair,m.eff]; }
 function snapshotConfig(){
   const sites=readSites();
   const prbs=parseInt($("prbs").value);
@@ -453,6 +520,11 @@ function snapshotConfig(){
   const miot=miotContext(sites,siteRadius,miotDensity,miotAccessPct,miotAvgAttempts,prbs);
   return {
     prbs,siteRadius,sites,miot,miotDensity,miotAccessPct,miotAvgAttempts,
+    bandwidthMhz:parseFloat($("bw").value),
+    txPowerDbm:parseFloat($("txPowerDbm").value),
+    antennaGainDb:parseFloat($("antennaGainDb").value),
+    noiseFigureDb:parseFloat($("noiseFigureDb").value),
+    interferenceMarginDb:parseFloat($("interferenceMarginDb").value),
     steps:parseInt($("steps").value),
     loadEmb:parseFloat($("loadEmb").value),
     loadUrl:parseFloat($("loadUrl").value),
@@ -475,7 +547,6 @@ function snapshotConfig(){
     emtcFrequency:parseFloat($("emtcFrequency").value),
     emtcDistance:parseFloat($("emtcDistance").value),
     emtcSlowMobility:parseFloat($("emtcSlowMobility").value),
-    latTarget:parseFloat($("latTarget").value),
     urlMin:parseFloat($("urlMin").value)/100,
     embMin:parseFloat($("embMin").value),
     iotSlaProfile:$("iotSlaProfile").value,
@@ -576,6 +647,7 @@ function criticForward(net,x){
 }
 function actorUpdate(net,sample,adv,cfg){
   const f=actorForward(net,sample.state,cfg.temp);
+  if(sample.actionMask) f.probs=maskedPolicy(f.probs,sample.actionMask);
   const p=Math.max(f.probs[sample.action],1e-9), ratio=p/Math.max(sample.oldProb,1e-9);
   const clippedHigh=1+cfg.clip, clippedLow=1-cfg.clip;
   const saturated=(adv>=0 && ratio>clippedHigh)||(adv<0 && ratio<clippedLow);
@@ -616,13 +688,13 @@ function criticUpdate(net,state,target,cfg){
 
 /* ---------- PPO rollout and training ---------- */
 function collectRollout(actor,critic,cfg,seed,len){
-  let rnd=seededNoise(seed),sh=[0.55,0.25,0.20],roll=[];
+  let rnd=seededNoise(seed),sh=[...INITIAL_SHARES],roll=[];
   for(let k=0;k<len;k++){
     const ld=loadAt(k,cfg,rnd),m=metrics(ld,sh,cfg),st=stateVector(ld,m);
-    const af=actorForward(actor,st,cfg.temp),a=sampleProb(af.probs,rnd),oldProb=af.probs[a];
-    const ns=enforceShares(sh.map((v,i)=>v+actions[a].d[i]),cfg);
-    const m2=metrics(ld,ns,cfg),r=rewardFnCfg(m2,cfg),st2=stateVector(ld,m2);
-    roll.push({state:st,action:a,oldProb,reward:r,nextState:st2});
+    const af=actorForward(actor,st,cfg.temp),safe=selectSafePpoAction(af.probs,ld,sh,cfg,rnd);
+    const a=safe.action,oldProb=Math.max(safe.probs[a],1e-9),ns=safe.shares;
+    const m2=safe.metrics,r=rewardFnCfg(m2,cfg),st2=stateVector(ld,m2);
+    roll.push({state:st,action:a,oldProb,reward:r,nextState:st2,actionMask:safe.mask});
     sh=ns;
   }
   return roll;
@@ -664,28 +736,28 @@ function trainPPO(cfg){
 
 /* ---------- Evaluation ---------- */
 function evaluateBaseline(cfg,seed){
-  let rnd=seededNoise(seed),sh=[0.55,0.25,0.20],out=[],changes=0,lastA=0;
+  let rnd=seededNoise(seed),sh=[...INITIAL_SHARES],out=[],changes=0,lastA=0;
   for(let k=0;k<cfg.steps;k++){
     const ld=loadAt(k,cfg,rnd),before=metrics(ld,sh,cfg);
     let a=0;
-    if(before.lat>cfg.latTarget)a=1;
+    if(before.urlSrv<1 && sh[1]<0.84)a=1;
     else if(before.iotSrv<cfg.iotMin)a=2;
     else if(before.emb<cfg.embMin)a=4;
     const ns=enforceShares(sh.map((v,i)=>v+actions[a].d[i]),cfg),after=metrics(ld,ns,cfg),r=rewardFnCfg(after,cfg);
     if(k&&a!==lastA)changes++;lastA=a;sh=ns;
-    out.push({t:k+1,r,lat:after.lat,emb:after.emb,iot:after.iotSrv,fair:after.fair,eff:after.eff,shares:[...sh],action:a,ld:[...ld]});
+    out.push({t:k+1,r,lat:null,emb:after.emb,iot:after.iotSrv,fair:after.fair,eff:after.eff,shares:[...sh],action:a,ld:[...ld]});
   }
   out.actionChanges=changes;return out;
 }
 function evaluatePPO(actor,cfg,seed){
-  let rnd=seededNoise(seed),sh=[0.55,0.25,0.20],out=[],changes=0,lastA=0;
+  let rnd=seededNoise(seed),sh=[...INITIAL_SHARES],out=[],changes=0,lastA=0;
   for(let k=0;k<cfg.steps;k++){
     const ld=loadAt(k,cfg,rnd),before=metrics(ld,sh,cfg),st=stateVector(ld,before);
     const probs=actorForward(actor,st,Math.max(0.25,cfg.temp*0.55)).probs;
-    const a=argmax(probs); // deterministic evaluation after stochastic PPO training
-    const ns=enforceShares(sh.map((v,i)=>v+actions[a].d[i]),cfg),after=metrics(ld,ns,cfg),r=rewardFnCfg(after,cfg);
+    const safe=selectSafePpoAction(probs,ld,sh,cfg); // deterministic, SLA-masked evaluation
+    const a=safe.action,ns=safe.shares,after=safe.metrics,r=rewardFnCfg(after,cfg);
     if(k&&a!==lastA)changes++;lastA=a;sh=ns;
-    out.push({t:k+1,r,lat:after.lat,emb:after.emb,iot:after.iotSrv,fair:after.fair,eff:after.eff,shares:[...sh],action:a,ld:[...ld]});
+    out.push({t:k+1,r,lat:null,emb:after.emb,iot:after.iotSrv,fair:after.fair,eff:after.eff,shares:[...sh],action:a,ld:[...ld],safetyProjected:safe.projected});
   }
   out.actionChanges=changes;return out;
 }
@@ -693,7 +765,8 @@ function evaluatePPO(actor,cfg,seed){
 function renderPoint(pt){
   const cfg=snapshotConfig(),prbs=cfg.prbs;shares=[...pt.shares];
   $("reward").textContent=pt.r.toFixed(3);
-  $("lat").textContent=pt.lat.toFixed(2)+" ms";
+  $("lat").textContent="UNVERIFIABLE";
+  $("lat").title="Real packet latency requires MAC-scheduler telemetry.";
   $("thr").textContent=pt.emb.toFixed(3);
   $("fair").textContent=pt.fair.toFixed(3);
   $("eff").textContent=pt.eff.toFixed(3);
@@ -706,11 +779,11 @@ function renderPoint(pt){
     $("b"+x).style.width=(shares[i]*100).toFixed(1)+"%";
   });
   $("slaEmb").textContent=pt.emb>=parseFloat($("embMin").value)?"PASS":"VIOL";
-  $("slaUrl").textContent=pt.lat<=parseFloat($("latTarget").value)?"PASS":"VIOL";
+  $("slaUrl").textContent=pt.shares[1]+1e-9>=cfg.urlMin?"ENVELOPE PASS · LAT UNVERIFIED":"ENVELOPE VIOL · LAT UNVERIFIED";
   $("slaIot").textContent=cfg.iotMin===0?"MONITOR":pt.iot>=cfg.iotMin?"PASS":"VIOL";
-  const st=stateVector(pt.ld,{lat:pt.lat,emb:pt.emb,fair:pt.fair,eff:pt.eff});
+  const st=stateVector(pt.ld,metrics(pt.ld,pt.shares,cfg));
   $("stateVec").textContent="["+st.map(v=>v.toFixed(3)).join(", ")+"]";
-  $("action").textContent=actions[pt.action].name;
+  $("action").textContent=actions[pt.action].name+(pt.safetyProjected?" (SLA safety projection applied)":"");
 }
 
 function drawAxes(ctx,W,H,ymin,ymax,count,yLabel){
@@ -776,6 +849,21 @@ function drawHistory(){
 
 function avgTail(arr,key){let n=Math.max(1,Math.floor(arr.length*0.25)),tail=arr.slice(-n);return tail.reduce((a,x)=>a+x[key],0)/tail.length}
 function pct(n,o){return o===0?0:100*(n-o)/Math.abs(o)}
+function assessPpoImprovement(baseline,ppo){
+  const keys=["emb","iot","fair","eff","r"],improvementTolerance=1e-4,degradationTolerance=1e-9;
+  const deltas={};
+  keys.forEach(key=>deltas[key]=avgTail(ppo,key)-avgTail(baseline,key));
+  const degraded=keys.filter(key=>deltas[key]<-degradationTolerance);
+  const improved=keys.filter(key=>deltas[key]>improvementTolerance);
+  return {accepted:degraded.length===0&&improved.length>0,degraded,improved,deltas};
+}
+function renderRejectedPpo(reason){
+  renderBaselineOnly();
+  ["cmpEmbPpo","cmpUrlPpo","cmpIotPpo","cmpFairPpo","cmpEffPpo","cmpRPpo"].forEach(id=>$(id).textContent="REJECTED");
+  ["gainEmb","gainIot","gainFair","gainEff","gainR"].forEach(id=>$(id).textContent="N/A — candidate not better");
+  $("gainUrl").textContent="N/A — no MAC telemetry";
+  if(reason) $("cmpRPpo").title=reason;
+}
 
 function drawCompare(id,key,ymin,ymax){
   const c=$(id),ctx=c.getContext("2d"),W=c.width,H=c.height;
@@ -797,6 +885,13 @@ function drawCompare(id,key,ymin,ymax){
   plot(comparison.baseline,"#ffb020");
   plot(comparison.ppo,"#4aa3ff");
 }
+function drawUnavailable(id){
+  const c=$(id),ctx=c.getContext("2d"),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle="#091525";ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#9fb3c8";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.font="600 15px system-ui";ctx.fillText("UNVERIFIABLE — NO MAC TELEMETRY",W/2,H/2-8);
+  ctx.font="11px system-ui";ctx.fillText("Not used in PPO reward, policy, or SLA guard",W/2,H/2+18);
+}
 
 function renderBaselineOnly(){
   const b=comparison.baseline;
@@ -804,7 +899,6 @@ function renderBaselineOnly(){
 
   const vals={
     emb:avgTail(b,"emb"),
-    lat:avgTail(b,"lat"),
     iot:avgTail(b,"iot"),
     fair:avgTail(b,"fair"),
     eff:avgTail(b,"eff"),
@@ -812,7 +906,7 @@ function renderBaselineOnly(){
   };
 
   $("cmpEmbBase").textContent=vals.emb.toFixed(3);
-  $("cmpUrlBase").textContent=vals.lat.toFixed(2);
+  $("cmpUrlBase").textContent="UNVERIFIABLE";
   $("cmpIotBase").textContent=vals.iot.toFixed(3);
   $("cmpFairBase").textContent=vals.fair.toFixed(3);
   $("cmpEffBase").textContent=vals.eff.toFixed(3);
@@ -826,7 +920,7 @@ function renderBaselineOnly(){
   });
 
   drawBaselineCurve("chartEmb","emb",0,1.25);
-  drawBaselineCurve("chartUrl","lat",0,Math.max(5,...b.map(x=>x.lat)));
+  drawUnavailable("chartUrl");
   drawBaselineCurve("chartIot","iot",0,1.15);
 }
 
@@ -850,24 +944,23 @@ function drawBaselineCurve(id,key,ymin,ymax){
 function renderComparison(){
   const b=comparison.baseline,p=comparison.ppo;if(!b.length||!p.length)return;
   const vals={
-    emb:[avgTail(b,"emb"),avgTail(p,"emb")],lat:[avgTail(b,"lat"),avgTail(p,"lat")],
+    emb:[avgTail(b,"emb"),avgTail(p,"emb")],
     iot:[avgTail(b,"iot"),avgTail(p,"iot")],fair:[avgTail(b,"fair"),avgTail(p,"fair")],
     eff:[avgTail(b,"eff"),avgTail(p,"eff")],r:[avgTail(b,"r"),avgTail(p,"r")]
   };
   $("cmpEmbBase").textContent=vals.emb[0].toFixed(3);$("cmpEmbPpo").textContent=vals.emb[1].toFixed(3);
-  $("cmpUrlBase").textContent=vals.lat[0].toFixed(2);$("cmpUrlPpo").textContent=vals.lat[1].toFixed(2);
+  $("cmpUrlBase").textContent="UNVERIFIABLE";$("cmpUrlPpo").textContent="UNVERIFIABLE";
   $("cmpIotBase").textContent=vals.iot[0].toFixed(3);$("cmpIotPpo").textContent=vals.iot[1].toFixed(3);
   $("cmpFairBase").textContent=vals.fair[0].toFixed(3);$("cmpFairPpo").textContent=vals.fair[1].toFixed(3);
   $("cmpEffBase").textContent=vals.eff[0].toFixed(3);$("cmpEffPpo").textContent=vals.eff[1].toFixed(3);
   $("cmpRBase").textContent=vals.r[0].toFixed(3);$("cmpRPpo").textContent=vals.r[1].toFixed(3);
-  $("gainEmb").textContent=(pct(vals.emb[1],vals.emb[0])>=0?"+":"")+pct(vals.emb[1],vals.emb[0]).toFixed(1)+"%";
-  const lg=100*(vals.lat[0]-vals.lat[1])/Math.max(vals.lat[0],1e-9);
-  $("gainUrl").textContent=(lg>=0?"+":"")+lg.toFixed(1)+"% latency improvement";
-  $("gainIot").textContent=(pct(vals.iot[1],vals.iot[0])>=0?"+":"")+pct(vals.iot[1],vals.iot[0]).toFixed(1)+"%";
-  $("gainFair").textContent=(pct(vals.fair[1],vals.fair[0])>=0?"+":"")+pct(vals.fair[1],vals.fair[0]).toFixed(1)+"%";
-  $("gainEff").textContent=(pct(vals.eff[1],vals.eff[0])>=0?"+":"")+pct(vals.eff[1],vals.eff[0]).toFixed(1)+"%";
-  $("gainR").textContent=(pct(vals.r[1],vals.r[0])>=0?"+":"")+pct(vals.r[1],vals.r[0]).toFixed(1)+"%";
-  drawCompare("chartEmb","emb",0,1.25);drawCompare("chartUrl","lat",0,Math.max(5,...b.map(x=>x.lat),...p.map(x=>x.lat)));drawCompare("chartIot","iot",0,1.15);
+  $("gainEmb").textContent="+"+Math.max(0,pct(vals.emb[1],vals.emb[0])).toFixed(1)+"%";
+  $("gainUrl").textContent="N/A — no MAC telemetry";
+  $("gainIot").textContent="+"+Math.max(0,pct(vals.iot[1],vals.iot[0])).toFixed(1)+"%";
+  $("gainFair").textContent="+"+Math.max(0,pct(vals.fair[1],vals.fair[0])).toFixed(1)+"%";
+  $("gainEff").textContent="+"+Math.max(0,pct(vals.eff[1],vals.eff[0])).toFixed(1)+"%";
+  $("gainR").textContent="+"+Math.max(0,pct(vals.r[1],vals.r[0])).toFixed(1)+"%";
+  drawCompare("chartEmb","emb",0,1.25);drawUnavailable("chartUrl");drawCompare("chartIot","iot",0,1.15);
 }
 function renderDiag(d,b,p){
   $("diagUpdates").textContent=d.updates;
@@ -879,7 +972,7 @@ function renderDiag(d,b,p){
 }
 function channelTrace(cfg){
   const c=channelEstimates(cfg);
-  const line=(name,x)=>`${name}: model=${x.model}, f=${x.frequencyGhz.toFixed(2)}GHz, d=${x.distanceM.toFixed(0)}m, slow=${x.slowMobilityPct.toFixed(0)}%, basePL=${x.baseDb.toFixed(2)}dB, mobilityMargin=${x.mobilityMarginDb.toFixed(2)}dB, totalPL=${x.totalDb.toFixed(2)}dB, capacityFactor=${pathLossCapacityFactor(x.totalDb).toFixed(3)}`;
+  const line=(name,x)=>{const l=sliceLinkBudget(x,cfg);return `${name}: model=${x.model}, f=${x.frequencyGhz.toFixed(2)}GHz, d=${x.distanceM.toFixed(0)}m, slow=${x.slowMobilityPct.toFixed(0)}%, basePL=${x.baseDb.toFixed(2)}dB, mobilityMargin=${x.mobilityMarginDb.toFixed(2)}dB, totalPL=${x.totalDb.toFixed(2)}dB, Rx/PRB=${l.rxPerPrbDbm.toFixed(2)}dBm, noise/PRB=${l.noisePerPrbDbm.toFixed(2)}dBm, SINR=${l.sinrDb.toFixed(2)}dB, SE=${l.spectralEfficiency.toFixed(3)}b/s/Hz`};
   return `[CHANNEL/PATHLOSS]\n${line("eMBB",c.emb)}\n${line("URLLC",c.urllc)}\n${line("eMTC",c.emtc)}\n`;
 }
 function workflowTrace(mode,cfg,details={}){
@@ -897,9 +990,9 @@ function workflowTrace(mode,cfg,details={}){
     `[06 SAMPLE] ${iterations} rollouts × ${rolloutLen} samples collected; state, action, old probability, reward and next state stored\n`+
     `[07 ADVANTAGE] TD residuals and GAE returns calculated with gamma=${cfg.gamma.toFixed(3)} and lambda=0.95; advantages normalized\n`+
     `[08 PPO UPDATE] 4 epochs applied; updates=${details.updates||0}, clip=${((details.clip||0)*100).toFixed(1)}%, criticLoss=${(details.critic||0).toFixed(4)}\n`+
-    `[09 SAFETY] Minimum URLLC share and normalized primary-carrier slice bounds projected after every candidate action\n`+
+    `[09 SAFETY] Hard action mask covers controllable eMBB/mIoT thresholds and the URLLC minimum PRB envelope. Real URLLC latency is UNVERIFIABLE without MAC telemetry and is excluded from PPO reward, policy and guard\n`+
     `[10 MATCHED EVAL] PPO and rule baseline evaluated for ${cfg.steps} steps with identical seed=24680\n`+
-    `[11 OUTPUT] KPI cards, allocation, comparison charts, diagnostics and trace rendered\n`+
+    `[11 ACCEPTANCE] Publish PPO only if at least one controllable KPI improves and none degrade beyond tolerance; otherwise retain rule baseline\n`+
     `[12 COMPLETE] PPO workflow complete\n`;
   return common+
     `[05 RULE POLICY] PPO training disabled; deterministic SLA checks select each allocation action\n`+
@@ -911,7 +1004,7 @@ function workflowTrace(mode,cfg,details={}){
 function appendLog(series,label,cfg,workflow){
   $("log").textContent=workflow+"\n"+channelTrace(cfg)+"\n[EVALUATION STEPS]\n";
   series.forEach(pt=>{
-    $("log").textContent+=`t=${pt.t.toString().padStart(3)} | ${label.padEnd(8)} | ${actions[pt.action].name.padEnd(28)} | shares=${pt.shares.map(v=>(100*v).toFixed(0)+"%").join("/")} | lat=${pt.lat.toFixed(2)}ms | eMBB=${pt.emb.toFixed(2)} | R=${pt.r.toFixed(3)}
+    $("log").textContent+=`t=${pt.t.toString().padStart(3)} | ${label.padEnd(8)} | ${actions[pt.action].name.padEnd(28)}${pt.safetyProjected?" [SLA PROJECTED]":""} | shares=${pt.shares.map(v=>(100*v).toFixed(0)+"%").join("/")} | latency=UNVERIFIABLE | eMBB=${pt.emb.toFixed(2)} | R=${pt.r.toFixed(3)}
 `;
   });
   $("log").scrollTop=$("log").scrollHeight;
@@ -922,14 +1015,34 @@ function runPPO(){
   $("modeBadge").innerHTML="<strong>Mode:</strong> PPO-MDP — actor/critic training + evaluation";
   const cfg=snapshotConfig();
   $("status").textContent="Training PPO actor/critic and evaluating matched baseline…";
-  const trained=trainPPO(cfg);
-  liveActor=trained.actor;liveCritic=trained.critic;liveRnd=seededNoise(77777);liveDiag=trained.diag;
+  let trained,candidatePpo;
+  try{
+    trained=trainPPO(cfg);
+    candidatePpo=evaluatePPO(trained.actor,cfg,24680);
+  }catch(error){
+    $("status").textContent=`SLA-safe PPO halted: ${error.message}`;
+    $("log").textContent=`[SAFETY HALT] ${error.message}\nNo PPO allocation was applied or displayed.`;
+    return;
+  }
   comparison.baseline=evaluateBaseline(cfg,24680);
-  comparison.ppo=evaluatePPO(trained.actor,cfg,24680);
+  const acceptance=assessPpoImprovement(comparison.baseline,candidatePpo);
+  liveDiag=trained.diag;
+  if(!acceptance.accepted){
+    liveActor=null;liveCritic=null;liveRnd=null;comparison.ppo=[];
+    kpiHistory=comparison.baseline.map(x=>({...x}));t=kpiHistory.length;
+    renderPoint(kpiHistory[kpiHistory.length-1]);drawHistory();
+    renderRejectedPpo(`Degraded: ${acceptance.degraded.join(", ")||"none"}; improved: ${acceptance.improved.join(", ")||"none"}`);
+    renderDiag(trained.diag,comparison.baseline,candidatePpo);
+    appendLog(kpiHistory,"RULE",cfg,workflowTrace("PPO TRAIN + EVALUATE",cfg,trained.diag)+`[DEPLOYMENT GATE] PPO candidate REJECTED; degraded=${acceptance.degraded.join(", ")||"none"}; improved=${acceptance.improved.join(", ")||"none"}. Rule baseline retained.\n`);
+    $("status").textContent=`PPO candidate rejected: it did not provide a non-degrading improvement over the rule baseline. Rule-based output retained.`;
+    return;
+  }
+  liveActor=trained.actor;liveCritic=trained.critic;liveRnd=seededNoise(77777);
+  comparison.ppo=candidatePpo;
   kpiHistory=comparison.ppo.map(x=>({...x}));
   t=kpiHistory.length;
   renderPoint(kpiHistory[kpiHistory.length-1]);drawHistory();renderComparison();renderDiag(trained.diag,comparison.baseline,comparison.ppo);appendLog(kpiHistory,"PPO",cfg,workflowTrace("PPO TRAIN + EVALUATE",cfg,trained.diag));
-  $("status").textContent=`PPO training complete. ${trained.diag.updates} actor/critic sample updates; evaluation uses the same traffic seed as baseline.`;
+  $("status").textContent=`PPO accepted: improved ${acceptance.improved.join(", ")} with no controllable KPI degradation versus the matched rule baseline.`;
 }
 function runBaseline(){
   clearStaleState();
@@ -940,7 +1053,13 @@ function runBaseline(){
   // Keep a previously trained PPO result only for visual comparison.
   // Never train or update PPO from the Rule Baseline button.
   if(liveActor){
-    comparison.ppo=evaluatePPO(liveActor,cfg,24680);
+    try{
+      const candidate=evaluatePPO(liveActor,cfg,24680);
+      comparison.ppo=assessPpoImprovement(comparison.baseline,candidate).accepted?candidate:[];
+    }catch(error){
+      comparison.ppo=[];
+      $("log").textContent=`[SAFETY HALT] Stored PPO was not evaluated: ${error.message}`;
+    }
   }else{
     comparison.ppo=[];
   }
@@ -953,6 +1072,9 @@ function runBaseline(){
   if(comparison.ppo.length){
     renderComparison();
     $("status").textContent="Rule-based baseline complete. PPO was disabled during this run; blue comparison is the stored trained PPO policy evaluated on the same traffic.";
+  }else if(liveActor){
+    renderRejectedPpo("Stored PPO candidate did not pass the improvement gate for this configuration.");
+    $("status").textContent="Rule-based baseline complete. Stored PPO candidate was rejected because it did not improve controllable KPIs without degradation.";
   }else{
     renderBaselineOnly();
     $("status").textContent="Rule-based baseline complete. PPO was disabled. Baseline outputs are shown in orange and in the Without PPO column. Run PPO-MDP separately to add the PPO comparison.";
@@ -978,9 +1100,9 @@ function runSingleStep(){
     liveActor=makeActor(r);
     liveCritic=makeCritic(r);
     liveRnd=seededNoise(77777);
-    liveBaselineShares=[0.55,0.25,0.20];
+    liveBaselineShares=[...INITIAL_SHARES];
     liveBaseHistory=[];
-    shares=[0.55,0.25,0.20];
+    shares=[...INITIAL_SHARES];
     kpiHistory=[];
     comparison={baseline:[],ppo:[]};
     t=0;
@@ -994,11 +1116,19 @@ function runSingleStep(){
   const before=metrics(ld,shares,cfg);
   const st=stateVector(ld,before);
   const af=actorForward(liveActor,st,cfg.temp);
-  const a=sampleProb(af.probs,liveRnd);
-  const oldProb=af.probs[a];
+  let safe;
+  try{
+    safe=selectSafePpoAction(af.probs,ld,shares,cfg,liveRnd);
+  }catch(error){
+    $("status").textContent=`SLA-safe PPO halted: ${error.message}`;
+    $("log").textContent+=`\n[SAFETY HALT] ${error.message}\nNo PPO allocation was applied.`;
+    return;
+  }
+  const a=safe.action;
+  const oldProb=Math.max(safe.probs[a],1e-9);
 
-  const ns=enforceShares(shares.map((v,i)=>v+actions[a].d[i]),cfg);
-  const after=metrics(ld,ns,cfg);
+  const ns=safe.shares;
+  const after=safe.metrics;
   const rwd=rewardFnCfg(after,cfg);
   const st2=stateVector(ld,after);
 
@@ -1007,7 +1137,7 @@ function runSingleStep(){
   const adv=rwd+cfg.gamma*vn-v;
   const target=rwd+cfg.gamma*vn;
 
-  const sample={state:st,action:a,oldProb};
+  const sample={state:st,action:a,oldProb,actionMask:safe.mask};
   let clip=0,closs=0;
   for(let e=0;e<4;e++){
     clip+=actorUpdate(liveActor,sample,adv,cfg).clipped;
@@ -1018,7 +1148,7 @@ function runSingleStep(){
   t++;
   const pt={
     t,r:rwd,lat:after.lat,emb:after.emb,iot:after.iotSrv,
-    fair:after.fair,eff:after.eff,shares:[...shares],action:a,ld:[...ld]
+    fair:after.fair,eff:after.eff,shares:[...shares],action:a,ld:[...ld],safetyProjected:safe.projected
   };
   kpiHistory.push(pt);
   if(kpiHistory.length>180) kpiHistory.shift();
@@ -1026,7 +1156,7 @@ function runSingleStep(){
   // ---- Matched rule-based branch using the SAME traffic state ----
   const bBefore=metrics(ld,liveBaselineShares,cfg);
   let ba=0;
-  if(bBefore.lat>cfg.latTarget) ba=1;
+  if(bBefore.urlSrv<1 && liveBaselineShares[1]<0.84) ba=1;
   else if(bBefore.iotSrv<cfg.iotMin) ba=2;
   else if(bBefore.emb<cfg.embMin) ba=4;
 
@@ -1044,10 +1174,20 @@ function runSingleStep(){
   // Refresh EVERY visible output on every click.
   comparison.baseline=liveBaseHistory.map(x=>({...x}));
   comparison.ppo=kpiHistory.map(x=>({...x}));
-
-  renderPoint(pt);
-  drawHistory();
-  renderComparison();
+  const stepAcceptance=assessPpoImprovement(comparison.baseline,comparison.ppo);
+  if(stepAcceptance.accepted){
+    renderPoint(pt);
+    drawHistory();
+    renderComparison();
+  }else{
+    comparison.ppo=[];
+    renderPoint(bpt);
+    const candidateHistory=kpiHistory;
+    kpiHistory=liveBaseHistory;
+    drawHistory();
+    kpiHistory=candidateHistory;
+    renderRejectedPpo(`Degraded: ${stepAcceptance.degraded.join(", ")||"none"}; improved: ${stepAcceptance.improved.join(", ")||"none"}`);
+  }
 
   liveDiag={
     updates:(liveDiag.updates||0)+4,
@@ -1074,7 +1214,7 @@ function runSingleStep(){
   const stepWorkflow=
     `[WORKFLOW — SINGLE STEP ${t}]\n`+
     `[01 CONFIG] Current controls captured; traffic/action seed stream=77777\n`+
-    `[02 CHANNEL] Mobility-aware path loss and capacity factors recalculated\n`+
+    `[02 CHANNEL] Per-slice path loss, link-budget SINR and spectral efficiency recalculated\n`+
     `[03 LOAD] eMBB=${ld[0].toFixed(3)}, URLLC=${ld[1].toFixed(3)}, eMTC=${ld[2].toFixed(3)}\n`+
     `[04 STATE] [${st.map(v=>v.toFixed(3)).join(", ")}]\n`+
     `[05 POLICY] Action probabilities=[${af.probs.map(v=>v.toFixed(3)).join(", ")}]${initializedNow?"; actor/critic initialized with seed=99173":""}\n`+
@@ -1088,18 +1228,19 @@ function runSingleStep(){
     `[13 COMPLETE] Single-step workflow complete\n`;
   $("log").textContent +=
     stepWorkflow + channelTrace(cfg) +
-    `t=${t.toString().padStart(3)} | PPO  | ${actions[a].name.padEnd(28)} | shares=${shares.map(v=>(100*v).toFixed(0)+"%").join("/")} | lat=${after.lat.toFixed(2)}ms | eMBB=${after.emb.toFixed(2)} | mIoT=${after.iotSrv.toFixed(2)} | R=${rwd.toFixed(3)}\n` +
-    `t=${t.toString().padStart(3)} | RULE | ${actions[ba].name.padEnd(28)} | shares=${liveBaselineShares.map(v=>(100*v).toFixed(0)+"%").join("/")} | lat=${bAfter.lat.toFixed(2)}ms | eMBB=${bAfter.emb.toFixed(2)} | mIoT=${bAfter.iotSrv.toFixed(2)} | R=${br.toFixed(3)}\n`;
+    `t=${t.toString().padStart(3)} | PPO  | ${actions[a].name.padEnd(28)} | shares=${shares.map(v=>(100*v).toFixed(0)+"%").join("/")} | latency=UNVERIFIABLE | eMBB=${after.emb.toFixed(2)} | mIoT=${after.iotSrv.toFixed(2)} | R=${rwd.toFixed(3)}\n` +
+    `t=${t.toString().padStart(3)} | RULE | ${actions[ba].name.padEnd(28)} | shares=${liveBaselineShares.map(v=>(100*v).toFixed(0)+"%").join("/")} | latency=UNVERIFIABLE | eMBB=${bAfter.emb.toFixed(2)} | mIoT=${bAfter.iotSrv.toFixed(2)} | R=${br.toFixed(3)}\n`;
 
   $("log").scrollTop=$("log").scrollHeight;
 
-  $("status").textContent=
-    `Single-step MDP ${t} complete — PPO action: ${actions[a].name}; rule action: ${actions[ba].name}. All KPIs and comparisons refreshed.`;
+  $("status").textContent=stepAcceptance.accepted
+    ? `Single-step PPO accepted — improved ${stepAcceptance.improved.join(", ")} with no controllable KPI degradation.`
+    : "Single-step PPO candidate rejected; rule-based output retained because the candidate was not uniformly non-degrading.";
 }
 function resetAll(){
   clearStaleState();
   $("modeBadge").innerHTML="<strong>Mode:</strong> READY";
-  shares=[0.55,0.25,0.20];kpiHistory=[];comparison={baseline:[],ppo:[]};t=0;liveActor=null;liveCritic=null;liveRnd=null;liveDiag={updates:0,clip:0,adv:0,critic:0};liveBaselineShares=[0.55,0.25,0.20];liveBaseHistory=[];
+  shares=[...INITIAL_SHARES];kpiHistory=[];comparison={baseline:[],ppo:[]};t=0;liveActor=null;liveCritic=null;liveRnd=null;liveDiag={updates:0,clip:0,adv:0,critic:0};liveBaselineShares=[...INITIAL_SHARES];liveBaseHistory=[];
   $("log").textContent="";$("status").textContent="Reset complete.";
   ["cmpEmbBase","cmpEmbPpo","gainEmb","cmpUrlBase","cmpUrlPpo","gainUrl","cmpIotBase","cmpIotPpo","gainIot","cmpFairBase","cmpFairPpo","gainFair","cmpEffBase","cmpEffPpo","gainEff","cmpRBase","cmpRPpo","gainR","diagUpdates","diagClip","diagAdv","diagCritic","diagBaseActs","diagPpoActs"].forEach(id=>$(id).textContent="—");
   drawHistory();["chartEmb","chartUrl","chartIot"].forEach(id=>{let c=$(id),x=c.getContext("2d");x.clearRect(0,0,c.width,c.height)});
@@ -1107,7 +1248,7 @@ function resetAll(){
 }
 function initial(){
   const cfg=snapshotConfig(),ld=[cfg.loadEmb,cfg.loadUrl,cfg.loadIot],m=metrics(ld,shares,cfg),r=rewardFnCfg(m,cfg);
-  const pt={t:0,r,lat:m.lat,emb:m.emb,iot:m.iotSrv,fair:m.fair,eff:m.eff,shares:[...shares],action:0,ld};
+  const pt={t:0,r,lat:null,emb:m.emb,iot:m.iotSrv,fair:m.fair,eff:m.eff,shares:[...shares],action:0,ld};
   renderPoint(pt);
 }
 $("run").onclick=runPPO;
@@ -1119,8 +1260,8 @@ renderSiteControls();
 
 // Mark previous outputs stale whenever any configuration control changes.
 [
-  "bw","prbs","siteRadius","steps","interval","embCaMode","embFddCarriers","embTddCarriers","embTddDlPct","embChannelModel","embFrequency","embDistance","embSlowMobility","urllcChannelModel","urllcFrequency","urllcDistance","urllcSlowMobility","emtcChannelModel","emtcFrequency","emtcDistance","emtcSlowMobility","loadEmb","loadUrl","miotDensity","miotAccessPct","miotAvgAttempts",
-  "latTarget","urlMin","embMin","iotSlaProfile","gamma","clip","lr","temp"
+  "bw","prbs","txPowerDbm","antennaGainDb","noiseFigureDb","interferenceMarginDb","siteRadius","steps","interval","embCaMode","embFddCarriers","embTddCarriers","embTddDlPct","embChannelModel","embFrequency","embDistance","embSlowMobility","urllcChannelModel","urllcFrequency","urllcDistance","urllcSlowMobility","emtcChannelModel","emtcFrequency","emtcDistance","emtcSlowMobility","loadEmb","loadUrl","miotDensity","miotAccessPct","miotAvgAttempts",
+  "urlMin","embMin","iotSlaProfile","gamma","clip","lr","temp"
 ].forEach(id=>{
   const el=$(id);
   if(!el) return;
