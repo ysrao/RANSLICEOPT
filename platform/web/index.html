@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RAN Slice Decision Platform</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div><span class="eyebrow">CARRIER DECISION SUPPORT · RESEARCH MVP</span><h1>RAN Slice Provisioning</h1><p>Two-timescale cell planning and guarded PPO evaluation</p></div><div id="health" class="pill">Local simulation</div></header>
+<main>
+  <section class="panel controls"><h2>Scenario</h2><div class="grid">
+    <label>Traffic profile<select id="profile"><option>P1_balanced_busy_hour</option><option>P2_eMBB_hotspot</option><option>P3_URLLC_burst</option><option>P4_massive_IoT</option><option>P5_mixed_failure_stress</option><option value="P6_ppo_advantage_demo">P6 PPO advantage — DEMO ONLY</option></select></label>
+    <label>Area (km²)<input id="area_km2" type="number" value="1" step="0.1"></label>
+    <label>Configured cells<input id="configured_cells" type="number" value="12"></label>
+    <label>Morphology<select id="morphology"><option value="dense_urban">Dense urban</option><option value="urban" selected>Urban</option><option value="suburban">Suburban</option><option value="rural">Rural</option><option value="indoor">Indoor</option></select></label>
+    <label>Carrier frequency (GHz)<input id="carrier_frequency_ghz" type="number" value="3.5" step="0.1"></label>
+    <label>Limiting-link Tx power (dBm)<input id="limiting_tx_power_dbm" type="number" value="23" step="1"></label>
+    <label>Rx antenna gain (dBi)<input id="receive_antenna_gain_dbi" type="number" value="17" step="1"></label>
+    <label>Receiver noise figure (dB)<input id="receiver_noise_figure_db" type="number" value="5" step="0.5"></label>
+    <label>Reference bandwidth (kHz)<input id="reference_bandwidth_khz" type="number" value="360" step="10"></label>
+    <label>Required SINR (dB)<input id="required_sinr_db" type="number" value="0" step="0.5"></label>
+    <label>Propagation margins (dB)<input id="propagation_margin_db" type="number" value="20" step="1"></label>
+    <label>Planning efficiency<input id="planning_efficiency" type="number" value="0.65" min="0.1" max="1" step="0.05"></label>
+    <label>PRBs / cell<input id="prbs_per_cell" type="number" value="273"></label>
+    <label>IoT devices / km²<input id="iot_density_km2" type="number" value="1000000"></label>
+    <label>Registered IoT / cell<input id="registered_capacity_cell" type="number" value="120000"></label>
+    <label>Active IoT fraction<input id="iot_active_fraction" type="number" value="0.001" step="0.0001"></label>
+    <label>Material gain (%)<input id="material_gain_pct" type="number" value="2" step="0.5"></label>
+    <label>PPO train samples<input id="train_steps" type="number" value="4096" step="512"></label>
+  </div><button id="run">Run matched evaluation</button><p class="note">Synthetic fallback is selected. A carrier RIC/KPM export requires validated decoding and field mapping.</p></section>
+  <section id="statusPanel" class="panel hidden"><div class="statusrow"><div><span class="eyebrow">DECISION STATUS</span><h2 id="status">—</h2><p id="reason"></p></div><div class="recommend"><span>Recommended</span><strong id="recommended">—</strong></div></div></section>
+  <section id="summary" class="cards hidden"></section>
+  <section id="coveragePanel" class="panel hidden"><h2>Calculated coverage basis</h2><div id="coverage" class="cards"></div><p class="note">Screening estimate only. Replace with calibrated 3GPP/vendor propagation and site constraints for a carrier decision.</p></section>
+  <section id="comparisonPanel" class="panel hidden"><h2>Matched policy comparison</h2><div class="tablewrap"><table><thead><tr><th>Policy</th><th>Reward</th><th>PRB utilization</th><th>Fairness</th><th>eMBB SLA</th><th>URLLC SLA</th><th>IoT SLA</th><th>Inference</th></tr></thead><tbody id="comparison"></tbody></table></div></section>
+  <section id="charts" class="split hidden"><div class="panel"><h2>Mean reward</h2><div id="bars"></div></div><div class="panel"><h2>Decision limitations</h2><ul id="limitations"></ul></div></section>
+</main><footer>Advisory output only · no direct RIC control · negative and inconclusive outcomes are valid</footer>
+<script src="app.js"></script></body></html>
