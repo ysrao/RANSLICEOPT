@@ -831,7 +831,7 @@ function summarizeDisturbance(out,d,cfg){
   return {shortfall,reward,worst,actionChanges,windowLength:window.length};
 }
 function nextPaint(){
-  return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  return new Promise(resolve=>setTimeout(resolve,50));
 }
 function showDisturbanceResults(){
   const panel=$("disturbanceResults");
@@ -1409,6 +1409,11 @@ refreshMulticellSummary();
 refreshSingleCarrierConfig();
 
 initial();
+
+// Reproducible diagnostic entry point: append ?autorun-disturbance=1.
+if(new URLSearchParams(location.search).get("autorun-disturbance")==="1"){
+  setTimeout(runDisturbanceTest,0);
+}
 
 
 ["loadEmb","loadUrl"].forEach(id=>{
