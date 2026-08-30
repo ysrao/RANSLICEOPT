@@ -2,9 +2,11 @@
 
 ## Purpose
 
-This experimental artifact tests whether the existing seven-input PPO controller provides a measurable transient-resilience benefit under a held-out offered-load disturbance. It does not replace the v15.4 reference evaluation and does not claim general PPO superiority.
+This experimental artifact tests whether the existing seven-input PPO controller provides a measurable transient-resilience benefit under a held-out offered-load disturbance. Its default v16 scenario is a five-step, +400% mIoT/eMTC PRACH access-storm abstraction. It does not replace the v15.4 reference evaluation and does not claim general PPO superiority.
 
 The disturbance is absent from PPO training. PPO and the deterministic rule controller begin with the same allocation and receive the same evaluation seed and event. The user can select the disturbed slice, offered-load increase from 0% to 500%, start step, duration, and reward non-inferiority tolerance.
+
+The PRACH-storm label denotes synchronized aggregate access-attempt pressure. The artifact does not simulate individual preambles, collision resolution, access-class barring, backoff, retransmission timers, or the complete 3GPP random-access procedure; it is a standards-motivated service-envelope stress test, not a PRACH conformance model.
 
 ## Decision rule
 

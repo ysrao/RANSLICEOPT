@@ -8,6 +8,13 @@ RANsliceOpt AI — Soft RAN Slicing optimization using RL PPO with Multi-Step MD
 
 **Current browser version: v15.4**
 
+An experimental v16 companion artefact is also included locally as
+[`RANsliceOpt_AI_v16_experimental.html`](RANsliceOpt_AI_v16_experimental.html).
+Its default held-out event is a five-step, +400% mIoT/eMTC **PRACH access-storm
+abstraction**. It increases aggregate access-attempt load during matched PPO and
+rule evaluation; it does not simulate individual preambles, collisions, backoff,
+retransmission timers, or the complete 3GPP random-access procedure.
+
 The PPO path uses a hard SLA safety layer: unsafe actions have zero selection
 probability, a feasible resource projection is used when no local action is safe,
 and physically infeasible traffic/threshold combinations halt without applying an

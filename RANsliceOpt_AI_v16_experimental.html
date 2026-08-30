@@ -117,7 +117,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 <body>
 <header>
   <h1>RANsliceOpt AI v16 Experimental — 10-Site Disturbance Evaluation</h1>
-  <div class="subtitle">Matched PPO-versus-rule stress testing with configurable eMBB, URLLC, or mIoT offered-load disturbances. Experimental results must not be mixed with v15.4.</div>
+  <div class="subtitle">Matched PPO-versus-rule stress testing, including the v16 mIoT/eMTC PRACH access-storm abstraction. Experimental results must not be mixed with v15.4.</div>
 </header>
 <div class="wrap">
 <div class="grid">
@@ -180,13 +180,13 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
     <div class="row"><label>Learning rate</label><input id="lr" type="number" value="0.035" min="0.001" max="0.2" step="0.005"></div>
     <div class="row"><label>Exploration temperature</label><input id="temp" type="number" value="0.8" min="0.1" max="2" step="0.1"></div>
     <hr>
-    <h2>Held-Out Disturbance</h2>
-    <div class="row"><label>Disturbed slice</label><select id="disturbanceSlice"><option value="0">eMBB</option><option value="1">URLLC</option><option value="2" selected>mIoT/eMTC</option></select></div>
+    <h2>Held-Out Disturbance / PRACH Storm</h2>
+    <div class="row"><label>Disturbed slice</label><select id="disturbanceSlice"><option value="0">eMBB</option><option value="1">URLLC</option><option value="2" selected>mIoT/eMTC — PRACH storm</option></select></div>
     <div class="row"><label>Offered-load increase (%)</label><input id="disturbancePct" type="number" value="400" min="0" max="500" step="10"></div>
     <div class="row"><label>Start step</label><input id="disturbanceStart" type="number" value="60" min="2" max="119" step="1"></div>
     <div class="row"><label>Duration (steps)</label><input id="disturbanceDuration" type="number" value="5" min="1" max="30" step="1"></div>
     <div class="row"><label>Reward non-inferiority tolerance (%)</label><input id="disturbanceRewardTolerance" type="number" value="2.5" min="0" max="10" step="0.5"></div>
-    <div class="small">The held-out event is applied only during matched evaluation, never during PPO training. A 400% increase means five times the undisturbed offered load, subject to the model's load bound. Resilience is supported only when service shortfall falls by at least 10%, worst service does not fall, and reward remains within the disclosed tolerance.</div>
+    <div class="small">The held-out event is applied only during matched evaluation, never during PPO training. For mIoT/eMTC, it represents a synchronized PRACH access storm: a 400% increase means five times the undisturbed aggregate access-attempt load, subject to the model's load bound. It does not simulate individual preambles, collisions, backoff, retransmission timers, or a complete 3GPP random-access procedure. Resilience is supported only when service shortfall falls by at least 10%, worst service does not fall, and reward remains within the disclosed tolerance.</div>
     <div class="btns">
       <button id="run" class="primary">Run PPO-MDP</button>
       <button id="stepBtn">Run Single Step</button>
@@ -287,7 +287,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 
 
     <section class="panel" style="margin-top:14px">
-      <h2>Held-Out Disturbance Result</h2>
+      <h2>Held-Out Disturbance / PRACH Storm Result</h2>
       <div class="small">Transient window begins at the configured disturbance step and ends ten steps after the event. Service shortfall is $\sum\max(0,1-S)$ over that window. Lower shortfall is better; higher cumulative reward is better.</div>
       <table style="margin-top:10px">
         <thead><tr><th>Transient metric</th><th>Rule-based</th><th>PPO</th><th>PPO minus rule</th></tr></thead>
@@ -832,7 +832,7 @@ function summarizeDisturbance(out,d,cfg){
 }
 function runDisturbanceTest(){
   clearStaleState();
-  const cfg=snapshotConfig(),d=disturbanceConfig(cfg),names=["eMBB","URLLC","mIoT/eMTC"];
+  const cfg=snapshotConfig(),d=disturbanceConfig(cfg),names=["eMBB","URLLC","mIoT/eMTC PRACH access-storm abstraction"];
   $("modeBadge").innerHTML="<strong>Mode:</strong> v16 HELD-OUT DISTURBANCE";
   $("status").textContent="Training on the undisturbed generator, then evaluating both controllers on the identical held-out event…";
   let trained,b,p;
