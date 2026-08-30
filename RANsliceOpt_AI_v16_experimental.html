@@ -244,7 +244,7 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
       </section>
     </div>
 
-    <section class="panel" style="margin-top:14px">
+    <section id="disturbanceResults" class="panel" style="margin-top:14px" tabindex="-1">
       <h2>Reward / KPI History</h2>
       <canvas id="chart" width="900" height="240"></canvas>
     </section>
@@ -830,18 +830,35 @@ function summarizeDisturbance(out,d,cfg){
   let actionChanges=0;for(let i=1;i<window.length;i++)if(window[i].action!==window[i-1].action)actionChanges++;
   return {shortfall,reward,worst,actionChanges,windowLength:window.length};
 }
-function runDisturbanceTest(){
+function nextPaint(){
+  return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+}
+function showDisturbanceResults(){
+  const panel=$("disturbanceResults");
+  panel.scrollIntoView({behavior:"smooth",block:"start"});
+  panel.focus({preventScroll:true});
+}
+async function runDisturbanceTest(){
   clearStaleState();
   const cfg=snapshotConfig(),d=disturbanceConfig(cfg),names=["eMBB","URLLC","mIoT/eMTC PRACH access-storm abstraction"];
   $("modeBadge").innerHTML="<strong>Mode:</strong> v16 HELD-OUT DISTURBANCE";
   $("status").textContent="Training on the undisturbed generator, then evaluating both controllers on the identical held-out event…";
+  $("disturbanceRun").disabled=true;
+  $("disturbanceRun").textContent="Running disturbance test…";
+  await nextPaint();
   let trained,b,p;
   try{
     trained=trainPPO(cfg);
     b=evaluateDisturbance("rule",null,cfg,24680,d);
     p=evaluateDisturbance("ppo",trained.actor,cfg,24680,d);
   }catch(error){
-    $("status").textContent=`Disturbance test halted safely: ${error.message}`;return;
+    $("status").textContent=`Disturbance test halted safely: ${error.message}`;
+    $("shockDecision").textContent=`TEST HALTED: ${error.message}`;
+    showDisturbanceResults();
+    return;
+  }finally{
+    $("disturbanceRun").disabled=false;
+    $("disturbanceRun").textContent="Run Held-Out Disturbance Test";
   }
   const rb=summarizeDisturbance(b,d,cfg),rp=summarizeDisturbance(p,d,cfg);
   const delta={shortfall:rp.shortfall-rb.shortfall,reward:rp.reward-rb.reward,worst:rp.worst-rb.worst,actionChanges:rp.actionChanges-rb.actionChanges};
@@ -858,6 +875,7 @@ function runDisturbanceTest(){
     :`NOT SUPPORTED FOR THIS TEST: PPO did not jointly satisfy the shortfall, worst-service, and ${(100*rewardTolerance).toFixed(1)}% reward non-inferiority conditions.`;
   $("status").textContent=`Held-out ${names[d.slice]} disturbance complete: +${d.pct.toFixed(0)}% for ${d.duration} step(s), beginning at step ${d.start+1}.`;
   $("log").textContent=`[v16 EXPERIMENTAL]\nTraining disturbance: none\nHeld-out test: ${names[d.slice]} +${d.pct.toFixed(0)}%, steps ${d.start+1}-${d.start+d.duration}\nMatched evaluation seed: 24680\nTransient window: ${rb.windowLength} steps\nReward non-inferiority tolerance: ${(100*rewardTolerance).toFixed(1)}%\nPPO usefulness decision: ${useful?"SUPPORTED FOR THIS TEST":"NOT SUPPORTED FOR THIS TEST"}\n`;
+  showDisturbanceResults();
 }
 
 function renderPoint(pt){
