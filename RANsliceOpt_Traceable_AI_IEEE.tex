@@ -1,158 +1,188 @@
 \documentclass[conference]{IEEEtran}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{graphicx}
-\usepackage{booktabs}
-\usepackage{cite}
-\usepackage{hyperref}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
-
-\title{Traceable AI-Assisted RAN Slicing: Mobility-Selective Soft Slicing in 6G RAN Using Proximal Policy Optimization}
-
+\usepackage{amsmath,amssymb,booktabs,cite,hyperref,tikz}
+\title{PPO versus Rule-Based Soft RAN Slicing:\\Benefits, Limits, and Guarded Acceptance}
 \author{Anonymous Submission}
-
 \begin{document}
-
 \maketitle
 
 \begin{abstract}
-6G networks must allocate shared spectrum across heterogeneous services (mIoT/eMTC, URLLC, eMBB). Hard slicing provides isolation but sacrifices efficiency \cite{ref15}; in our experiments, 5--8\% loss (81--84\% hard vs.\ 87\% aggregated, 79.5--84.3\% hard vs.\ 82.1--91.2\% soft PPO). Aggregation violates fairness and SLA. Soft slicing with dynamic borrowing offers middle ground but requires algorithmic optimization. \textbf{Novel insight:} mIoT/eMTC are stationary while eMBB/URLLC are mobile. Prior RL work treats mobility generically, missing this asymmetry. We formulate spectrum allocation as an MDP and solve via PPO with mobility-selective state design: separate $v_{\text{eMBB}}, v_{\text{URLLC}}$, with $v_{\text{eMTC}}$ omitted. This enables the learned policy to anchor on stable mIoT/eMTC floors, freeing spectrum for dynamic eMBB/URLLC borrowing. Small neural network (64$\to$64$\to$336, $<1~\mu$s inference) trained via four-phase curriculum learning. \textbf{Results across diverse scenarios:} 84.7\% soft PPO efficiency (vs.\ 81.2\% hard), 99.99999\% URLLC SLA maintained, +5.2\% revenue uplift, 20--30\% lower allocation churn, 25\% faster convergence (5,400 episodes). RAN neutrality preserved via transparent tariffing.
-
-\textbf{Keywords:} RAN Slicing, Soft Partitioning, PPO, Mobility-Aware Allocation, 6G, Heterogeneous Services.
+This paper asks when proximal policy optimization (PPO) provides sufficient benefit to replace deterministic rule-based soft RAN slicing. In our earlier simulations under normal traffic, PPO ties eMBB throughput and reduces mIoT service, fairness, efficiency, and composite reward; a guarded acceptance criterion correctly retains the rule controller. A subsequent exploratory stress test introduces a configurable, held-out offered-load disturbance. Under a severe five-step mIoT access storm, PPO reduces cumulative service deficit from 0.4918 to 0.0052 and raises the minimum observed mIoT service from 0.7456 to 0.9957, while cumulative reward is 1.25\% lower and remains within a disclosed 2.5\% non-inferiority tolerance. The benefit repeats across five event timings but does not appear for the tested eMBB or URLLC disturbances. Thus PPO is not generally superior; its observed value is conditional resilience under extreme modeled mIoT turbulence. All results are synthetic, use one evaluation seed, and do not measure packet latency or carrier reliability.
 \end{abstract}
 
+\begin{IEEEkeywords}
+RAN slicing, proximal policy optimization, rule-based control, safety, reproducibility
+\end{IEEEkeywords}
+
 \section{Introduction}
+Soft RAN slicing changes resource shares as demand changes, potentially reducing the stranded capacity of fixed partitions. The engineering question is not whether PPO can execute, but whether its additional complexity helps under conditions that defeat a transparent rule. This paper therefore evaluates both normal operation and explicit traffic disturbances under matched inputs, actions, safety constraints, and metrics.
 
-Heterogeneous 6G networks require partitioning shared spectrum to serve mIoT (low bandwidth, massive scale), URLLC (sub-1 ms latency, 99.99999\% reliability), and eMBB (elastic throughput). Hard slicing guarantees isolation but sacrifices efficiency; pure aggregation maximizes efficiency but violates service fairness and exposes URLLC to congestion.
+Here, \emph{two timescales} has a simple meaning. At the slower timescale, a planner configures the ten-site radio scenario, traffic assumptions, and protected allocation envelope. At the faster timescale, the controller repeatedly decides whether to hold the current slice allocation or transfer 5\% between two slices. Thus, slow configuration defines the feasible operating region, while fast control reacts inside it.
 
-\textbf{Prior work gaps:} (1) Reinforcement learning for RAN slicing (Ye et al.~\cite{ye2020}, Wang et al.~\cite{wang2022}) uses generic mobility models, ignoring that mIoT/eMTC are stationary while eMBB/URLLC are mobile; (2) soft slicing concepts (Bega et al.~\cite{bega2019}) are proposed but lack algorithmic solutions; (3) multi-objective optimization balancing efficiency, SLA, neutrality, and profitability simultaneously is unaddressed.
+The evaluation is \emph{traceable}: the artifact version, state variables, actions, seeds, reward, safety checks, comparison window, and accept/reject rule are stated alongside the result. Traceability here means that an engineering reviewer can follow a result back to its configuration and computation. It is not a claim that the neural network is explainable through feature attribution.
 
-\textbf{Our contribution:} We exploit mobility asymmetry via mobility-selective state design and Proximal Policy Optimization (PPO). By modeling mobility separately for eMBB/URLLC while omitting it for stationary eMTC, we enable the learned policy to recognize eMTC demand as predictable, allocating a stable soft floor that anchors dynamic borrowing between mobile services. Results demonstrate 84.7\% efficiency (+3.5 pp over hard slicing), 99.99999\% URLLC SLA, +5.2\% revenue, and 25\% faster convergence than generic mobility models.
+This paper makes three contributions: (i) an auditable seven-input, seven-action formulation for safe soft slicing; (ii) a matched, outcome-neutral acceptance criterion that retains the rule under normal traffic; and (iii) an exploratory disturbance harness that identifies a narrow mIoT resilience benefit and the accompanying reward tradeoff. Unlike an earlier dashboard draft, no result from a separate 13-input demonstration is used.
 
-\section{System Model \& PPO Formulation}
+PPO's clipped objective limits large policy updates \cite{schulman2017}, but that property does not establish superiority to operational rules. This is an evaluation study, not a new PPO algorithm: both controllers share observations, feasible actions, exogenous inputs, and a criterion fixed before each reported decision. ``Soft slicing'' denotes transferable shares with protected envelopes, not hard isolation or a complete standards-compliant network slice.
 
-\subsection{Mobility-Selective State Space}
+\subsection{Why mIoT Turbulence Is Different}
+The three service classes create different allocation stresses; their event frequency is deployment-specific, so this paper does not claim that eMBB or URLLC bursts are universally less common. eMBB commonly stresses sustained traffic volume, while URLLC stresses immediate service under strict timing requirements. Massive machine-type communication instead combines individually small transmissions with very high connection density; IMT-2020 identifies up to $10^6$ devices/km$^2$ as the mMTC connection-density target \cite{itu2020}. 3GPP consequently studied specific RAN overload controls for machine-type communications \cite{3gpp37868}.
 
-State at slot $t$:
+An mIoT access storm occurs when many normally quiet devices attempt access within a short interval. Triggers can include synchronized reporting, a common alarm, restoration after a power or coverage outage, firmware-driven reconnects, and aligned timers. Collisions can provoke backoff and retransmission, so attempts may grow faster than the device count; random access is a recognized cellular-IoT bottleneck \cite{gharbieh2016}. This interpretation is compatible with, but not certified by, the standards context: ITU-R defines the massive-connection requirement, while 3GPP TR 37.868 studies MTC access-network overload and controls such as access barring \cite{itu2020,3gpp37868}. ``Storm'' is our shorthand for a synchronized offered-load disturbance; neither reference standardizes the paper's 400\% magnitude. The artifact models aggregate service envelopes rather than the complete 3GPP random-access procedure, so the experiment is standards-motivated, not a conformance test.
+
+\section{System and Control Model}
+\subsection{Multicell Scenario and Metric Scope}
+The browser-based model represents ten sites using user-entered site coordinates, radio configuration, and service populations. eMBB traffic may aggregate FDD and TDD capacity; URLLC and mIoT use a single selected carrier. Geometry determines unique coverage and affects modeled mIoT density, access, and retries. The present evaluation concerns allocation logic, not a calibrated propagation or packet-level network model.
+
+The default allocation is $(x_e,x_u,x_m)=(0.77,0.03,0.20)$ for eMBB, URLLC, and mIoT, with $x_e+x_u+x_m=1$. The model reports normalized eMBB throughput, modeled mIoT service, Jain fairness, controllable efficiency, and a composite reward. Real URLLC latency is explicitly marked \emph{unverifiable}. It is excluded from the state, reward, policy comparison, and pass/fail decision. The safety layer protects only the modeled minimum URLLC resource envelope; it makes no latency or reliability claim.
+
+\subsection{Seven-Input State}
+At decision step $t$, the policy receives
 \begin{equation}
-s_t = [B_{\text{total}}, \rho_{\text{eMBB}}, \rho_{\text{URLLC}}, \rho_{\text{eMTC}}, q_{\text{eMBB}}, q_{\text{URLLC}}, q_{\text{eMTC}}, \text{SNR}, v_{\text{eMBB}}, v_{\text{URLLC}}, T_{\text{coh}}, B_{\text{prev}}, \tau]
+s_t=[\ell_e,\ell_u,\ell_m,q_u,T_e,J,E]_t,
 \end{equation}
+where the first three terms are normalized service loads, $q_u$ is modeled URLLC service, $T_e$ is the eMBB throughput index, $J$ is Jain fairness, and $E$ is controllable efficiency. Table~\ref{tab:state} gives the semantic grouping. These are model-derived indices rather than measured carrier KPIs.
 
-\textbf{Key innovation:} Separate $v_{\text{eMBB}}, v_{\text{URLLC}}$ (km/h) from generic mobility. Omit $v_{\text{eMTC}}$ (stationary). This $\sim$13-dim state guides PPO to learn that eMTC is stable---enabling aggressive dynamic borrowing.
-
-\subsection{Action Space \& Reward}
-
-Action: $a_t = [B_{\text{URLLC}}, B_{\text{eMTC}}, B_{\text{eMBB}}]$ s.t.\ $\sum B_i \leq B_{\text{total}}$.
-
-Multi-objective reward:
-\begin{equation}
-R_t = 0.40 R_{\text{SLA}} + 0.25 R_{\text{eff}} + 0.20 R_{\text{neut}} + 0.15 R_{\text{prof}}
-\end{equation}
-
-where $R_{\text{SLA}} = +2.0$ if URLLC meets SLA, $-10.0$ if violated; $R_{\text{eff}} = \frac{B_{\text{used}}}{B_{\text{total}}} \times 0.5$; $R_{\text{neut}} = -0.5$ if starved; $R_{\text{prof}} = -\frac{\text{Rev}_{\text{baseline}} - \text{Rev}_{\text{sliced}}}{\text{Rev}_{\text{baseline}}} \times 100$.
-
-\subsection{PPO Algorithm}
-
-\textbf{Policy network (actor):} $\pi(a|s; \theta) = \text{softmax}(\text{NN}_\theta(s))$, where NN is 64$\to$ReLU$\to$64$\to$ReLU$\to$336.
-
-\textbf{Value network (critic):} $V(s; \phi)$ outputs scalar value estimate.
-
-\textbf{PPO objective:}
-\begin{equation}
-L^{\text{CLIP}}(\theta) = \hat{\mathbb{E}}_t \left[ \min(r_t(\theta) \hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t) \right]
-\end{equation}
-
-where $r_t(\theta) = \frac{\pi(a_t|s_t; \theta)}{\pi(a_t|s_t; \theta_{\text{old}})}$, $\epsilon = 0.2$, $\hat{A}_t$ = GAE estimate ($\gamma=0.99, \lambda=0.95$).
-
-\textbf{Training:} Curriculum learning across 4 phases (1,350 episodes each):
-\begin{itemize}
-\item \textbf{Phase 1:} SLA foundation (abundant spectrum, $\lambda_{\text{SLA}}=0.50$)
-\item \textbf{Phase 2:} Device density (eMTC-heavy, $\lambda_{\text{SLA}}=0.45, \lambda_{\text{eff}}=0.25$)
-\item \textbf{Phase 3:} Spectrum constraint (50 RBs, $\lambda_{\text{eff}}=0.30$)
-\item \textbf{Phase 4:} Profitability (mixed scenarios, $\lambda_{\text{prof}}=0.15$)
-\end{itemize}
-
-\textbf{Hyperparameters:} $\text{lr}=3\times10^{-4}$, batch=512, epochs=10, rollout=2048.
-
-\section{Experimental Results}
-
-\subsection{Scenario Performance}
-
-\begin{table}[h!]
+\begin{table}[t]
 \centering
-\begin{tabular}{llll}
+\caption{PPO state used in the earlier simulations (seven inputs).}
+\label{tab:state}
+\begin{tabular}{cl}
 \toprule
-\textbf{Scenario} & \textbf{Hard Slicing} & \textbf{Soft PPO} & \textbf{Gain} \\
+Inputs & Meaning \\
 \midrule
-Balanced (70/15/15) & 79.5\% & 82.1\% & +2.6 pp \\
-IoT-Heavy (60/30/10) & 84.3\% & 91.2\% & +6.9 pp \\
-High-Mobility & $\sim$80\% & 85\% & +5 pp \\
-\textbf{Avg.\ Efficiency} & \textbf{81.2\%} & \textbf{84.7\%} & \textbf{+3.5 pp} \\
+1--3 & eMBB, URLLC, and mIoT normalized load \\
+4 & Modeled URLLC service \\
+5 & eMBB throughput index \\
+6 & Jain fairness across modeled slice service \\
+7 & Controllable efficiency \\
 \bottomrule
 \end{tabular}
-\caption{Spectrum efficiency across scenarios.}
-\label{tab:results}
 \end{table}
 
-\textbf{URLLC SLA:} 99.99999\% (maintained across all scenarios).
+\subsection{Seven Bounded Actions}
+The categorical action space is deliberately small. Action 0 holds the shares; the other actions move 0.05 from one slice to another (Table~\ref{tab:actions}). This makes every policy output directly inspectable and prevents an unconstrained neural output from becoming a resource allocation.
 
-\textbf{Revenue:} +5.2\% uplift (IoT-heavy scenario via eMTC volume + eMBB retention).
+\begin{table}[t]
+\centering
+\caption{Categorical actions used in the simulations.}
+\label{tab:actions}
+\begin{tabular}{cl@{\qquad}cl}
+\toprule
+$a$ & Action & $a$ & Action \\
+\midrule
+0 & Hold & 4 & mIoT $\rightarrow$ eMBB \\
+1 & eMBB $\rightarrow$ URLLC & 5 & URLLC $\rightarrow$ mIoT \\
+2 & eMBB $\rightarrow$ mIoT & 6 & mIoT $\rightarrow$ URLLC \\
+3 & URLLC $\rightarrow$ eMBB & & \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\textbf{Allocation churn:} 22\% of slots (vs.\ 30\% generic mobility) --- 20--30\% reduction.
+Before sampling, the controller simulates all seven post-action allocations. Unsafe actions receive zero probability. If no local action is safe, the implementation searches a 0.5-percentage-point allocation grid for a feasible simplex projection; if none exists, control halts instead of emitting an unsafe allocation.
 
-\subsection{Convergence}
+Masking separates preference from permission: PPO ranks actions, while deterministic logic decides which may execute. The rule policy uses the same feasible set, so safety handling does not selectively favor PPO.
 
-Training on RTX 3080: \textbf{5,400 episodes} ($\sim$1.2 hrs), 25\% faster than generic $v_{\text{mobile}}$ models (7,200 episodes). Efficiency plateaus at 84.7\% by episode 4,500.
+\section{PPO and Rule-Based Comparator}
+The PPO actor is $7\!\rightarrow\!64\!\rightarrow\!64\!\rightarrow\!7$, with two tanh hidden layers and a categorical softmax output. The critic is $7\!\rightarrow\!64\!\rightarrow\!64\!\rightarrow\!1$. The clipped PPO objective is \cite{schulman2017}
+\begin{equation}
+L^{\rm clip}=\mathbb{E}_t\!\left[\min\!\left(r_t\hat A_t,
+\operatorname{clip}(r_t,1-\epsilon,1+\epsilon)\hat A_t\right)\right].
+\end{equation}
+The reference run uses eight iterations, rollout length 64, four epochs per iteration, $\gamma=0.97$, generalized-advantage parameter $\lambda=0.95$, learning rate 0.035, clip $\epsilon=0.2$, and temperature 0.8. This produces 2,048 sample updates. The actor initialization seed is 99173; rollout $i$ uses seed $12345+137i$; matched evaluation uses seed 24680.
 
-\subsection{Learned Policy (Qualitative)}
+The deterministic rule policy is the operational baseline. It applies explicit demand and safety logic to the same state and uses the same bounded transfers. It is not trained, and it is retained unless PPO passes the prespecified gate. Fixed hard slicing is excluded from the numerical comparison because this study evaluates two alternative controllers---PPO and deterministic rule-based control---for the same soft-slicing action space.
 
-PPO discovered:
-\begin{itemize}
-\item \textbf{eMTC anchor:} 8--15 RBs (stable, no fading buffer needed)
-\item \textbf{URLLC adaptive:} 12--20 RBs (varies with $v_{\text{URLLC}}, \text{SNR}$)
-\item \textbf{eMBB flexible:} remainder (borrows from stable eMTC)
-\end{itemize}
+At each step, the rule compares normalized slice pressure with the current allocation and chooses a bounded transfer toward the most relevant deficit, subject to the protected envelope. If no permitted transfer improves its deterministic priority, it holds. This is an appropriate comparator for the artifact because it is transparent, reacts to demand, and operates through exactly the same physical actions as PPO. Comparing against a fixed partition alone would not determine whether learning adds value beyond ordinary adaptive control.
 
-\textbf{Key insight:} Recognizing eMTC stationarity frees $\sim$2--3 RBs/slot for dynamic reallocation, explaining +3.5 pp efficiency gain.
+For clarity, the notation used in the equations, result table, and figure is fixed throughout the paper: $T_e$ denotes the normalized eMBB throughput index; $S_m$ denotes modeled mIoT service; $J$ denotes Jain's fairness index across modeled slice service; $E$ denotes controllable resource efficiency; and $R$ denotes the dimensionless composite reward. These symbols are performance indices, not percentages. The composite reward is
+\begin{align}
+R={}&0.40\,\operatorname{clip}(T_e)+0.25J
++0.15\,\operatorname{clip}(S_m) \nonumber\\
+&+0.20\,\operatorname{clip}(E)-P, \label{eq:reward}
+\end{align}
+The penalty is
+\begin{equation}
+P=0.30[T_e^{\min}-T_e]_++0.25[S_m^{\min}-S_m]_+.
+\end{equation}
+Reward is a dimensionless ranking objective, not throughput, latency, or reliability. Its weights make the preferred tradeoff explicit and auditable.
 
-\section{Regulatory \& Business Implications}
+\section{Matched Evaluation and Decision Gate}
+Both controllers replay the same 120-step evaluation trace. The summary uses the final 25\%, i.e., the last 30 steps, to compare steady-tail behavior rather than mixing early transients with later decisions. PPO is published as accepted only if at least one controllable KPI improves and none degrades. The five gate variables are eMBB throughput, mIoT service, fairness, controllable efficiency, and composite reward. Equality on every metric is not an improvement; any degradation rejects PPO and retains the rule policy.
 
-\textbf{RAN Neutrality:} Preserved via:
-\begin{itemize}
-\item \textbf{Per-slice tariffs:} URLLC \$30/Mbps (safety-critical), eMTC \$0.50/device (volume), eMBB \$0.10/Mbps (elastic).
-\item \textbf{Transparent rules:} Allocation policy verifiable; no content discrimination.
-\item \textbf{Fairness:} Per-flow URLLC, per-device eMTC allocation minima enforced.
-\end{itemize}
+This strict gate separates \emph{training demonstrability} from \emph{policy benefit}. Optimization diagnostics can show that gradients and clipping executed, but only matched held-out metrics determine whether the trained policy is preferable.
 
-\textbf{Business case:} Revenue uplift +5.2\% through eMTC monetization (\$0.50/device $\times$ 1M devices = \$500k/month) + URLLC premium (\$30/Mbps $\times$ 10k subscribers = \$300k/month) + eMBB retention (throughput +8\% $\to$ +2\% ARPU).
+The evaluation tests a directional engineering hypothesis: after training, PPO should improve at least one controllable metric without sacrificing another relative to the incumbent rule. The null operational decision is to retain the rule. This framing differs from a conventional significance test; our earlier simulations use one reference trace and do not estimate a sampling distribution. The gate is instead a conservative deployment screen. A future statistical study would repeat the paired experiment across independently generated traces and seeds before making a general performance claim.
 
-\section{Discussion \& Conclusion}
+The replay freezes the ten-site configuration and initial 77/3/20 allocation, clears training accumulators, and gives both controllers the identical evaluation-seed sequence. Each action passes through the same safety logic, and the tail window is fixed before inspection. The audit record stores version, inputs, architecture, seeds, reward, safety floors, window, raw summaries, and decision. Modeled URLLC service remains distinct from unmeasured packet latency.
 
-\textbf{Key findings:} (1) Mobility-selective state design reduces convergence by 25\% via simpler feature relationships; (2) soft slicing with learned borrowing outperforms both hard slicing (rigid) and aggregation (unfair); (3) small NN ($<1~\mu$s inference) enables edge deployment without cloud latency.
+\section{Results}
+Our earlier simulations under normal traffic give rule/PPO values of 1.2500/1.2500 for eMBB throughput, 1.1000/1.0865 for mIoT service, 0.6362/0.5634 for fairness, 1.1975/1.1928 for efficiency, and 0.9090/0.8908 for reward. PPO therefore ties only eMBB and is rejected.
 
-\textbf{Limitations:} Assumes known traffic mix $\rho_i$; online prediction required for real deployment. Multi-cell MARL (competitive borrowing) is future work.
+The largest difference is the fairness reduction of 0.0728. The reward reduction of 0.0182 is consistent with (\ref{eq:reward}), because lower fairness and mIoT service offset the eMBB tie.
 
-\textbf{Conclusion:} Mobility-selective PPO-based soft slicing achieves 84.7\% efficiency, 99.99999\% SLA, and +5.2\% revenue while preserving RAN neutrality. Edge-deployable small NN makes this practical for 6G carriers.
+The fairness and reward differences are approximately $-11.4\%$ and $-2.0\%$ of the rule values. They are descriptive ratios, not confidence intervals. Reward is the weighted objective in (\ref{eq:reward}), not an SLA-compliance percentage; component metrics remain necessary to expose tradeoffs hidden by aggregation.
+
+\subsection{Subsequent Exploratory Disturbance Result}
+The subsequent internal artifact \cite{ranslice16} applies a held-out offered-load disturbance only during matched evaluation; it is absent from PPO training. The user selects slice, percentage increase, start step, and duration. Cumulative service deficit is
+\begin{equation}
+Q=\sum_{t\in\mathcal{W}}[1-S_t]_+,
+\end{equation}
+over the disturbance plus ten recovery steps. At each step, service target 1.0 is subtracted from the achieved service only when the target is missed; therefore $Q=0$ is best and a larger $Q$ means more accumulated under-service. The minimum service is simply the lowest single service value observed in the window, so higher is better. Mean reward is the average weighted score across all modeled objectives, so higher is better. A stress-specific acceptance criterion requires at least 10\% lower $Q$, no lower minimum service, and reward within a disclosed 2.5\% non-inferiority tolerance.
+
+A predefined exploratory sweep covered three slices and 50, 100, 200, and 400\% disturbances. No benefit appeared for the tested eMBB or URLLC events. For a five-step 400\% mIoT increase beginning at step 60, PPO reduces accumulated under-service $Q$ from 0.4918 to 0.0052 and raises minimum mIoT service from 0.7456 to 0.9957. Mean reward is 0.9162 for the rule and 0.9047 for PPO (cumulative values 13.7425 and 13.5701), a 1.25\% reduction. Figure~\ref{fig:two-scenarios} shows that PPO protects mIoT service during the storm but pays a small overall-objective cost.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[font=\scriptsize]
+\begin{scope}[x=0.52cm,y=2.15cm]
+\draw[->] (0,0)--(0,1.40); \draw[->] (0,0)--(10.4,0);
+\foreach \y in {0,.25,.5,.75,1,1.25}{\draw[gray!20] (0,\y)--(10.1,\y);\node[left] at (0,\y){\y};}
+\foreach \x/\r/\p/\lab in {.5/1.25/1.25/$T_e$,2.5/1.10/1.0865/$S_m$,4.5/.6362/.5634/$J$,6.5/1.1975/1.1928/$E$,8.5/.9090/.8908/$R$}{
+\fill[blue!65] (\x,0) rectangle +(0.65,\r);\fill[orange!80] (\x+.7,0) rectangle +(0.65,\p);\node[below] at (\x+.68,0){\lab};}
+\node[font=\footnotesize\bfseries] at (5.05,1.52){(a) Normal traffic: tail-average indices};
+\end{scope}
+\begin{scope}[xshift=8.8cm,x=1.02cm,y=2.15cm]
+\draw[->] (0,0)--(0,1.18); \draw[->] (0,0)--(6.4,0);
+\foreach \y in {0,.25,.5,.75,1}{\draw[gray!20] (0,\y)--(6.1,\y);\node[left] at (0,\y){\y};}
+\foreach \x/\r/\p/\rv/\pv/\lab in {.4/.4918/.0052/.492/.005/{Service deficit},2.4/.7456/.9957/.746/.996/{Minimum service},4.4/.9162/.9047/.916/.905/{Mean reward}}{
+\fill[blue!65] (\x,0) rectangle +(0.65,\r);\fill[orange!80] (\x+.7,0) rectangle +(0.65,\p);\node[below,align=center,text width=1.5cm] at (\x+.68,0){\lab};}
+\node[rotate=90,anchor=center,text=white] at (.72,.28){.492};
+\node[anchor=south] at (1.42,.035){.005};
+\node[rotate=90,anchor=center,text=white] at (2.72,.42){.746};
+\node[rotate=90,anchor=center,text=white] at (3.42,.58){.996};
+\node[rotate=90,anchor=center,text=white] at (4.72,.54){.916};
+\node[rotate=90,anchor=center,text=white] at (5.42,.53){.905};
+\node[font=\footnotesize\bfseries] at (3.05,1.30){(b) +400\% mIoT storm};
+\end{scope}
+\node[fill=blue!65,minimum width=.3cm,minimum height=.17cm] at (6.7,-.72){};\node[anchor=west] at (6.95,-.72){Rule-based};
+\node[fill=orange!80,minimum width=.3cm,minimum height=.17cm] at (9.1,-.72){};\node[anchor=west] at (9.35,-.72){PPO};
+\end{tikzpicture}
+\caption{Matched rule-based and PPO results. In (a), higher is better. In (b), service deficit is accumulated failure to reach target 1.0 (lower is better); minimum service is the lowest value during the event (higher is better); mean reward is the average overall weighted score (higher is better).}
+\label{fig:two-scenarios}
+\end{figure*}
+
+Moving the same event to steps 25, 40, 60, 80, and 100 gives rule shortfalls of 0.6135, 0.4315, 0.4918, 0.3423, and 0.4364; PPO shortfalls are 0, 0.0089, 0.0052, 0.0008, and 0.0080. Reward differences range from +0.49\% to $-2.00\%$. This timing check is encouraging but not confirmatory: it uses the same traffic generator, one evaluation seed, and an event magnitude selected after the exploratory sweep.
+
+\section{Traceability, Limitations, and Validity}
+The cited v15.4 and v16 software artifacts are internal and unpublished \cite{ranslice154,ranslice16}. IEEE style permits citing such material when its status is clear, although it is not independently retrievable like an archival publication. The citations identify the implementations that fix the state, actions, seeds, reward, windows, disturbance, and acceptance criteria; the paper supplies the necessary details rather than relying on the citations alone.
+
+The results are synthetic and configuration-specific. They do not establish operator-network performance, packet latency, block-error rate, availability, or carrier-grade reliability. The single evaluation seed does not quantify training variance. The v16 magnitude and 2.5\% reward tolerance were selected during exploratory analysis and therefore require validation on frozen, independent tests. The reward weights encode an engineering preference, and changing them could change the ranking. A seven-action controller is inspectable but coarse, while the safety mask protects modeled allocation constraints rather than all radio conditions.
+
+Construct validity is limited because all KPIs are modeled proxies. Matched replay improves internal validity, but conclusions still depend on seed, training budget, and hyperparameters. External validity is limited by the synthetic ten-site configuration; results cannot be generalized to another topology, scheduler, or traffic mixture without rerunning the protocol.
+
+Future work should freeze the v16 disturbance matrix and 2.5\% tolerance before testing independent traffic generators and seeds, then report confidence intervals, win/tie/loss rates, and effect sizes. Packet-level experiments should model random access, backoff, retransmissions, scheduler latency, BLER, signaling overhead, and rollback. The reported controller uses a fixed five-percentage-point transfer; a future implementation should expose 0--5\% transfer magnitude so uncertain estimates can trigger more conservative changes. Most importantly, the mIoT result should remain conditional unless it survives independent validation.
+
+\section{Conclusion}
+PPO is not generally superior to deterministic rule-based soft slicing. In our earlier simulations under normal traffic, guarded acceptance rejects PPO. In the subsequent severe mIoT storm, PPO nearly eliminates accumulated service deficit and raises minimum service while accepting a small reward reduction; the tested eMBB and URLLC disturbances show no corresponding benefit. The defensible contribution is therefore conditional selection: retain transparent rules for ordinary operation and consider PPO only where repeated, independent evidence shows that resilience justifies its complexity and tradeoffs.
 
 \begin{thebibliography}{99}
-
-\bibitem{ye2020} H. Ye et al., ``Deep reinforcement learning for resource allocation in network slicing,'' \textit{IEEE TMC}, vol. 19, no. 8, pp. 1811--1824, 2020.
-
-\bibitem{wang2022} J. Wang et al., ``Proximal policy optimization for resource allocation in vehicular networks,'' \textit{IEEE JSAC}, vol. 40, no. 1, pp. 275--287, 2022.
-
-\bibitem{bega2019} L. Bega et al., ``Optimizing the admission control policy in LTE networks under traffic uncertainty,'' \textit{IEEE TCOMM}, vol. 67, no. 5, pp. 3362--3376, 2019.
-
-\bibitem{foukas2017} K. Foukas et al., ``Network slicing in 5G: An auction-based model,'' \textit{IEEE TMC}, vol. 16, no. 11, pp. 3111--3124, 2017.
-
-\bibitem{letaief2021} K. Letaief et al., ``The roadmap to 6G: Ten physical layer challenges for new spectrum,'' \textit{IEEE ComMag.}, vol. 59, no. 4, pp. 34--40, 2021.
-
-\bibitem{schulman2017} J. Schulman et al., ``Proximal policy optimization algorithms,'' \textit{arXiv:1707.06347}, 2017.
-
-\bibitem{3gpp2023} 3GPP TS 28.530, ``Management and orchestration; Architecture framework,'' 2023.
-
-\bibitem{berec2020} BEREC, ``Guidelines for quality of service in net neutrality,'' BoR(20)114, 2020.
-
+\bibitem{foukas2017} X. Foukas, G. Patounas, A. Elmokashfi, and M. K. Marina, ``Network slicing in 5G: Survey and challenges,'' \emph{IEEE Commun. Mag.}, vol. 55, no. 5, pp. 94--100, May 2017.
+\bibitem{3gpp28530} 3GPP, ``Management and orchestration; Concepts, use cases and requirements,'' TS 28.530, Release 18.
+\bibitem{schulman2017} J. Schulman, F. Wolski, P. Dhariwal, A. Radford, and O. Klimov, ``Proximal policy optimization algorithms,'' arXiv:1707.06347, 2017.
+\bibitem{itu2020} ITU-R, ``Minimum requirements related to technical performance for IMT-2020 radio interface(s),'' Report ITU-R M.2410-0, Nov. 2017.
+\bibitem{3gpp37868} 3GPP, ``Study on RAN improvements for machine-type communications,'' TR 37.868, Release 11.
+\bibitem{gharbieh2016} M. Gharbieh, H. ElSawy, A. Bader, and M.-S. Alouini, ``Tractable stochastic geometry model for IoT access in LTE networks,'' arXiv:1607.03349, 2016.
+\bibitem{ranslice154} DigitalTwinSim, ``RANsliceOpt: Multicell SLA-safe PPO evaluation,'' software artifact, ver. 15.4, internal and unpublished, 2026.
+\bibitem{ranslice16} DigitalTwinSim, ``RANsliceOpt: Experimental multicell disturbance evaluation,'' software artifact, ver. 16, internal and unpublished, 2026.
 \end{thebibliography}
-
 \end{document}
