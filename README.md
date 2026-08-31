@@ -24,6 +24,8 @@ held-out synchronized arrival schedule. The model explicitly represents
 contention preambles, collisions, randomized barring/backoff, retries, retry
 exhaustion, access failures, backlog, and access delay. It does not reallocate
 scheduled slice PRBs and does not claim 3GPP conformance or field performance.
+The PPO path uses a disclosed gNB capacity/recovery action mask and is therefore
+reported as guarded PPO rather than an unconstrained learned controller.
 
 The PPO path uses a hard SLA safety layer: unsafe actions have zero selection
 probability, a feasible resource projection is used when no local action is safe,

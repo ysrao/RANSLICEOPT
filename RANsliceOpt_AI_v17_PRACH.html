@@ -42,10 +42,10 @@
    <div class="row"><label for="fixedBackoff">Fixed retry backoff (RAOs)</label><input id="fixedBackoff" type="number" value="12" min="1" max="50"></div>
    <div class="row"><label for="ruleHigh">Rule high collision threshold</label><input id="ruleHigh" type="number" value="0.45" min="0.05" max="0.95" step="0.05"></div>
    <div class="row"><label for="ruleLow">Rule recovery threshold</label><input id="ruleLow" type="number" value="0.18" min="0" max="0.8" step="0.05"></div>
-   <div class="row"><label for="trainEpisodes">PPO training episodes</label><input id="trainEpisodes" type="number" value="50" min="10" max="200" step="10"></div>
+   <div class="row"><label for="trainEpisodes">PPO training episodes</label><input id="trainEpisodes" type="number" value="200" min="10" max="400" step="10"></div>
    <div class="row"><label for="gamma">PPO gamma</label><input id="gamma" type="number" value="0.97" min="0.5" max="0.999" step="0.01"></div>
    <div class="row"><label for="clip">PPO clip epsilon</label><input id="clip" type="number" value="0.2" min="0.05" max="0.5" step="0.05"></div>
-   <div class="row"><label for="lr">PPO learning rate</label><input id="lr" type="number" value="0.01" min="0.001" max="0.1" step="0.001"></div>
+   <div class="row"><label for="lr">PPO learning rate</label><input id="lr" type="number" value="0.002" min="0.0005" max="0.05" step="0.0005"></div>
   </details>
   <div id="status" class="status">Ready. No evaluation has been run.</div>
  </aside>
@@ -75,9 +75,12 @@ const ACTIONS=[
  {n:"hold",set:null},{n:"emergency throttle",set:[.01,1,18]},
  {n:"strong throttle",set:[.02,1,16]},{n:"heavy control",set:[.05,2,14]},
  {n:"moderate control",set:[.10,3,12]},{n:"light control",set:[.20,4,10]},
- {n:"limited open",set:[.40,4,8]},{n:"mostly open",set:[.70,3,5]},
- {n:"fully open",set:[1,1,2]}
+ {n:"fully open",set:[1,1,2]},
+ {n:"admission up",d:[.08,0,0]},{n:"admission down",d:[-.08,0,0]},
+ {n:"barring up",d:[0,2,0]},{n:"barring down",d:[0,-2,0]},
+ {n:"backoff up",d:[0,0,2]},{n:"backoff down",d:[0,0,-2]}
 ];
+const STATE_SIZE=13;
 const COLORS={none:"#a8b2bf",fixed:"#ffae57",rule:"#45a3ff",ppo:"#45d19b"};
 let trained=null,lastResults=null,lastCfg=null;
 function hash01(seed,a,b,c){let x=(seed^Math.imul(a+1,0x9e3779b1)^Math.imul(b+7,0x85ebca6b)^Math.imul(c+13,0xc2b2ae35))>>>0;x^=x>>>16;x=Math.imul(x,0x7feb352d);x^=x>>>15;x=Math.imul(x,0x846ca68b);x^=x>>>16;return (x>>>0)/4294967296}
@@ -92,7 +95,7 @@ function validate(c){if(c.start+c.duration>=c.horizon-5)throw Error("Storm must 
 function stormWeights(c){let w=[];for(let i=0;i<c.duration;i++){let x=(i+.5)/c.duration;w.push(c.profile==="moderate"?1:Math.pow(x,2)*Math.pow(1-x,c.profile==="extreme"?5:3))}let s=w.reduce((a,b)=>a+b,0);return w.map(x=>x/s)}
 function arrivals(c,seed){let schedule=Array(c.horizon).fill(0),r=rng(seed),w=stormWeights(c),remaining=c.devices;for(let i=0;i<c.duration;i++){let n=i===c.duration-1?remaining:Math.min(remaining,Math.round(c.devices*w[i]));schedule[c.start+i]+=n;remaining-=n}for(let t=0;t<c.horizon;t++)schedule[t]+=poisson(c.background,r);return schedule}
 function controls(type,c){if(type==="none")return{p:1,b:1,w:2};if(type==="fixed")return{p:c.fixedAcb,b:c.fixedBarring,w:c.fixedBackoff};return{p:1,b:1,w:2}}
-function stateVec(ctx,c){return[clamp(ctx.backlog/(c.devices*.7+1),0,2),clamp(ctx.newN/(c.preambles*5),0,2),ctx.lastCollision,ctx.lastSuccess,clamp(ctx.failures/(c.devices+1),0,1),clamp(ctx.meanDelay/c.horizon,0,1),ctx.ctrl.p,ctx.ctrl.w/30]}
+function stateVec(ctx,c){return[clamp(ctx.backlog/(c.devices*.7+1),0,2),clamp(ctx.newN/(c.preambles*5),0,2),ctx.lastCollision,ctx.lastSuccess,clamp(ctx.failures/(c.devices+1),0,1),clamp(ctx.meanDelay/c.horizon,0,1),ctx.ctrl.p,ctx.ctrl.w/30,ctx.lastIdle,clamp(ctx.backlogDelta/(c.preambles*3),-1,1),clamp(ctx.arrivalDelta/(c.preambles*3),-1,1),clamp(ctx.oldest/c.horizon,0,1),ctx.nearLimit]}
 function ruleStep(ctrl,ctx,c){
  const target=clamp(.55*c.preambles/Math.max(1,ctx.backlog),.005,1);
  ctrl.p=target;
@@ -100,33 +103,43 @@ function ruleStep(ctrl,ctx,c){
  else if(ctx.lastCollision<c.ruleLow){ctrl.b=clamp(ctrl.b-1,1,40);ctrl.w=clamp(ctrl.w-1,1,40)}
 }
 function softmax(z){let m=Math.max(...z),e=z.map(x=>Math.exp(clamp(x-m,-30,30))),s=e.reduce((a,b)=>a+b,0);return e.map(x=>x/s)}
-function makeNet(r){let W=Array.from({length:ACTIONS.length},()=>Array.from({length:8},()=>(r()-.5)*.18)),b=Array(ACTIONS.length).fill(0),v=Array.from({length:8},()=>(r()-.5)*.1);return{W,b,v,vb:0}}
+function makeNet(r){let W=Array.from({length:ACTIONS.length},()=>Array.from({length:STATE_SIZE},()=>(r()-.5)*.18)),b=Array(ACTIONS.length).fill(0),v=Array.from({length:STATE_SIZE},()=>(r()-.5)*.1);return{W,b,v,vb:0}}
 function policy(net,s){return softmax(net.W.map((row,i)=>row.reduce((a,w,j)=>a+w*s[j],net.b[i])))}
 function value(net,s){return net.v.reduce((a,w,i)=>a+w*s[i],net.vb)}
 function choose(probs,r){let u=r(),s=0;for(let i=0;i<probs.length;i++){s+=probs[i];if(u<=s)return i}return probs.length-1}
-function applyAction(ctrl,a){let s=ACTIONS[a].set;if(s){ctrl.p=s[0];ctrl.b=s[1];ctrl.w=s[2]}}
+function applyAction(ctrl,a){let x=ACTIONS[a];if(x.set){ctrl.p=x.set[0];ctrl.b=x.set[1];ctrl.w=x.set[2]}else if(x.d){ctrl.p=clamp(ctrl.p+x.d[0],.005,1);ctrl.b=clamp(ctrl.b+x.d[1],1,40);ctrl.w=clamp(ctrl.w+x.d[2],1,40)}}
+function maskedProbs(probs,mask){let x=probs.map((p,i)=>mask[i]?p:0),sum=x.reduce((a,b)=>a+b,0);return sum?x.map(p=>p/sum):probs}
+function guardedPolicy(net,s,ctrl,ctx,c){
+ let raw=policy(net,s),targetMax=clamp(.90*c.preambles/Math.max(1,ctx.backlog),.005,1),targetMin=(ctx.lastIdle>.65&&ctx.lastCollision<.25)?clamp(.35*c.preambles/Math.max(1,ctx.backlog),.005,1):.005;
+ let candidates=ACTIONS.map((_,a)=>{let q={...ctrl};applyAction(q,a);return q}),mask=candidates.map(q=>q.p<=targetMax*1.05&&q.p>=targetMin*.95);
+ if(!mask.some(Boolean)){let target=(targetMin+targetMax)/2,best=0;for(let i=1;i<candidates.length;i++)if(Math.abs(candidates[i].p-target)<Math.abs(candidates[best].p-target))best=i;mask[best]=true}
+ return {probs:maskedProbs(raw,mask),mask};
+}
 function percentile(a,p){if(!a.length)return 0;let x=[...a].sort((q,w)=>q-w),i=Math.min(x.length-1,Math.ceil(p*x.length)-1);return x[i]}
 function simulate(type,c,seed,net,training=false,actionRnd=null){
- let schedule=arrivals(c,seed),ctrl=controls(type,c),devices=[],nextId=0,failures=0,retries=0,successes=0,collisionTx=0,admittedTx=0,delays=[],trace=[],trajectory=[],lastCollision=0,lastSuccess=1,clearance=null;
+ let schedule=arrivals(c,seed),ctrl=controls(type,c),devices=[],nextId=0,failures=0,retries=0,successes=0,collisionTx=0,admittedTx=0,delays=[],trace=[],trajectory=[],lastCollision=0,lastSuccess=1,lastIdle=1,prevBacklog=0,prevNew=0,clearance=null,clearanceRewarded=false;
  let prng=actionRnd||rng(seed^0x51f15e);
  for(let t=0;t<c.horizon;t++){
   let newN=schedule[t];for(let j=0;j<newN;j++)devices.push({id:nextId++,born:t,next:t,attempts:0,done:false});
-  let active=devices.filter(d=>!d.done),ctx={backlog:active.length,newN,lastCollision,lastSuccess,failures,meanDelay:delays.length?delays.reduce((a,b)=>a+b,0)/delays.length:0,ctrl};
+  let active=devices.filter(d=>!d.done),oldest=active.length?Math.max(...active.map(d=>t-d.born)):0,nearLimit=active.length?active.filter(d=>d.attempts>=c.maxAttempts-2).length/active.length:0,ctx={backlog:active.length,newN,lastCollision,lastSuccess,lastIdle,backlogDelta:active.length-prevBacklog,arrivalDelta:newN-prevNew,oldest,nearLimit,failures,meanDelay:delays.length?delays.reduce((a,b)=>a+b,0)/delays.length:0,ctrl};
   let action=0,oldProb=1;
   if(type==="rule")ruleStep(ctrl,ctx,c);
-  if(type==="ppo"){let st=stateVec(ctx,c),probs=policy(net,st);action=training?choose(probs,prng):probs.indexOf(Math.max(...probs));oldProb=probs[action];applyAction(ctrl,action);trajectory.push({s:st,a:action,oldProb,reward:0})}
+  if(type==="ppo"){let st=stateVec(ctx,c),guard=guardedPolicy(net,st,ctrl,ctx,c),probs=guard.probs;action=training?choose(probs,prng):probs.indexOf(Math.max(...probs));oldProb=probs[action];applyAction(ctrl,action);trajectory.push({s:st,a:action,oldProb,mask:guard.mask,reward:0})}
   let due=active.filter(d=>d.next<=t),admitted=[];
   for(let d of due){let gate=hash01(seed,d.id,t,11);if(gate<=ctrl.p)admitted.push(d);else d.next=t+1+Math.floor(hash01(seed,d.id,t,12)*ctrl.b)}
   let bins=Array.from({length:c.preambles},()=>[]);for(let d of admitted){let p=Math.floor(hash01(seed,d.id,d.attempts,13)*c.preambles);bins[p].push(d);d.attempts++;admittedTx++}
   let collided=0,stepSuccess=0,stepFail=0;
   for(let bin of bins){if(bin.length===1){let d=bin[0];d.done=true;successes++;stepSuccess++;delays.push(t-d.born+1)}else if(bin.length>1){collided+=bin.length;collisionTx+=bin.length;for(let d of bin){retries++;if(d.attempts>=c.maxAttempts){d.done=true;failures++;stepFail++}else d.next=t+1+Math.floor(hash01(seed,d.id,d.attempts,14)*ctrl.w)}}}
-  lastCollision=admitted.length?collided/admitted.length:0;lastSuccess=admitted.length?stepSuccess/admitted.length:1;
+  lastCollision=admitted.length?collided/admitted.length:0;lastSuccess=admitted.length?stepSuccess/admitted.length:1;lastIdle=bins.filter(bin=>bin.length===0).length/c.preambles;
   let backlog=devices.reduce((n,d)=>n+(!d.done?1:0),0);if(t>=c.start+c.duration&&backlog===0&&clearance===null)clearance=t;
-  let reward=stepSuccess/Math.max(1,c.preambles)-1.2*lastCollision-2.5*stepFail/Math.max(1,newN+due.length)-1.5*backlog/Math.max(1,c.devices)-.03*(ctrl.b+ctrl.w)/80;
+  let idleWaste=lastIdle*backlog/Math.max(1,c.devices),reward=stepSuccess/Math.max(1,c.preambles)-1.2*lastCollision-2.5*stepFail/Math.max(1,newN+due.length)-1.5*backlog/Math.max(1,c.devices)-1.1*idleWaste-.03*(ctrl.b+ctrl.w)/80;
+  if(t>=c.start+c.duration&&backlog===0&&!clearanceRewarded){reward+=2;clearanceRewarded=true}
   if(type==="ppo")trajectory[trajectory.length-1].reward=reward;
   trace.push({t,backlog,collision:lastCollision,success:stepSuccess,fail:stepFail,p:ctrl.p,b:ctrl.b,w:ctrl.w,action});
+  prevBacklog=backlog;prevNew=newN;
  }
  let unfinished=devices.filter(d=>!d.done).length;failures+=unfinished;
+ if(type==="ppo"&&training&&trajectory.length)trajectory[trajectory.length-1].reward-=6*unfinished/Math.max(1,devices.length);
  return {type,total:devices.length,successes,failures,retries,collisionRate:admittedTx?collisionTx/admittedTx:0,successRate:devices.length?successes/devices.length:0,meanDelay:delays.length?delays.reduce((a,b)=>a+b,0)/delays.length:0,p95:percentile(delays,.95),peak:Math.max(...trace.map(x=>x.backlog)),clearance:clearance===null?c.horizon:clearance,trace,trajectory};
 }
 function train(c){
@@ -137,9 +150,9 @@ function train(c){
   for(let i=tr.length-1;i>=0;i--){G=tr[i].reward+c.gamma*G;returns[i]=G}
   let vals=tr.map(x=>value(net,x.s)),adv=returns.map((x,i)=>x-vals[i]),m=adv.reduce((a,b)=>a+b,0)/adv.length,sd=Math.sqrt(adv.reduce((a,b)=>a+(b-m)*(b-m),0)/adv.length+1e-8);adv=adv.map(x=>(x-m)/sd);
   for(let epoch=0;epoch<3;epoch++)for(let i=0;i<tr.length;i++){
-   let x=tr[i],probs=policy(net,x.s),ratio=probs[x.a]/Math.max(x.oldProb,1e-9),use=(adv[i]>=0?Math.min(ratio,1+c.clip):Math.max(ratio,1-c.clip))*adv[i],coef=clamp(use,-3,3);
-   for(let a=0;a<ACTIONS.length;a++){let g=coef*((a===x.a?1:0)-probs[a]);net.b[a]+=c.lr*g;for(let j=0;j<8;j++)net.W[a][j]+=c.lr*g*x.s[j]}
-   let err=clamp(returns[i]-value(net,x.s),-5,5);net.vb+=c.lr*.6*err;for(let j=0;j<8;j++)net.v[j]+=c.lr*.6*err*x.s[j]
+   let x=tr[i],probs=maskedProbs(policy(net,x.s),x.mask),ratio=probs[x.a]/Math.max(x.oldProb,1e-9),use=(adv[i]>=0?Math.min(ratio,1+c.clip):Math.max(ratio,1-c.clip))*adv[i],coef=clamp(use,-3,3);
+   for(let a=0;a<ACTIONS.length;a++){let g=coef*((a===x.a?1:0)-probs[a]);net.b[a]+=c.lr*g;for(let j=0;j<STATE_SIZE;j++)net.W[a][j]+=c.lr*g*x.s[j]}
+   let err=clamp(returns[i]-value(net,x.s),-5,5);net.vb+=c.lr*.6*err;for(let j=0;j<STATE_SIZE;j++)net.v[j]+=c.lr*.6*err*x.s[j]
   }
  }
  return net;
@@ -150,8 +163,8 @@ function render(results,c){
  $('kArrivals').textContent=c.devices.toLocaleString();$('kPreambles').textContent=c.preambles;$('kEpisodes').textContent=c.episodes;$('kSeed').textContent=c.seed;
  $('resultBody').innerHTML=results.map(x=>`<tr><td>${labels[x.type]}</td><td>${fmt(100*x.successRate,2)}</td><td class="${x.failures===Math.min(...results.map(z=>z.failures))?'best':''}">${x.failures}</td><td>${fmt(100*x.collisionRate,2)}</td><td>${x.retries}</td><td>${fmt(1000*x.meanDelay/c.raosPerSec,1)}</td><td>${fmt(1000*x.p95/c.raosPerSec,1)}</td><td>${x.peak}</td><td>${x.clearance}</td></tr>`).join('');
  let p=results.find(x=>x.type==="ppo"),nonDegrade=p.failures<=bestDet.failures&&p.p95<=bestDet.p95*1.05&&p.successRate+1e-9>=bestDet.successRate-.002,improve=p.failures<=bestDet.failures*.95||p.collisionRate<=bestDet.collisionRate*.95||p.p95<=bestDet.p95*.95,ok=nonDegrade&&improve;
- $('decision').className='status decision '+(ok?'pass':'fail');$('decision').textContent=ok?`SUPPORTED FOR THIS HELD-OUT TEST: PPO is non-degrading versus the best deterministic controller (${labels[bestDet.type]}) and improves at least one predefined PRACH outcome by 5%.`:`NOT SUPPORTED FOR THIS HELD-OUT TEST: PPO did not jointly satisfy failure, success, P95-delay, and 5% material-improvement conditions versus ${labels[bestDet.type]}.`;
- draw(results,c);$('log').textContent=`[V17 PRACH-ONLY EVALUATION]\nScope: synchronized mIoT contention; no scheduled PRB allocation\nTraffic seed: ${c.seed}; PPO initialization seed: 99173\nStorm: ${c.profile}, ${c.devices} devices, RAOs ${c.start}-${c.start+c.duration-1}\nResources: ${c.preambles} contention preambles/RAO, ${c.raosPerSec} RAOs/s\nUE behavior: ACB gate, uniform preamble selection, collision, randomized backoff, maximum ${c.maxAttempts} attempts\nBaselines: no control; fixed ACB; adaptive threshold rule\nPPO actions: admission, barring and retry-backoff adjustments\nAcceptance: no more failures, no >5% P95-delay degradation, no material success degradation, plus >=5% improvement in failures, collision rate, or P95 delay\nResult: ${ok?'SUPPORTED FOR THIS TEST':'NOT SUPPORTED FOR THIS TEST'}\nCaveat: aggregate research simulator; not 3GPP conformance or field performance.`;
+ $('decision').className='status decision '+(ok?'pass':'fail');$('decision').textContent=ok?`SUPPORTED FOR THIS HELD-OUT TEST: guarded PPO is non-degrading versus the best deterministic controller (${labels[bestDet.type]}) and improves at least one predefined PRACH outcome by 5%.`:`NOT SUPPORTED FOR THIS HELD-OUT TEST: guarded PPO did not jointly satisfy failure, success, P95-delay, and 5% material-improvement conditions versus ${labels[bestDet.type]}.`;
+  draw(results,c);$('log').textContent=`[V17 PRACH-ONLY EVALUATION]\nScope: synchronized mIoT contention; no scheduled PRB allocation\nTraffic seed: ${c.seed}; PPO initialization seed: 99173\nStorm: ${c.profile}, ${c.devices} devices, RAOs ${c.start}-${c.start+c.duration-1}\nResources: ${c.preambles} contention preambles/RAO, ${c.raosPerSec} RAOs/s\nUE behavior: ACB gate, uniform preamble selection, collision, randomized backoff, maximum ${c.maxAttempts} attempts\nBaselines: no control; fixed ACB; adaptive threshold rule\nPPO actions: admission, barring and retry-backoff adjustments\nPPO capacity guard: offered-attempt ceiling from backlog/preamble envelope; recovery floor when idle preambles coexist with backlog\nAcceptance: no more failures, no >5% P95-delay degradation, no material success degradation, plus >=5% improvement in failures, collision rate, or P95 delay\nResult: ${ok?'SUPPORTED FOR THIS TEST':'NOT SUPPORTED FOR THIS TEST'}\nCaveat: aggregate research simulator; not 3GPP conformance or field performance.`;
  $('csvBtn').disabled=false;$('resultPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function draw(results,c){let cv=$('chart'),x=cv.getContext('2d'),W=cv.width,H=cv.height,L=48,R=12,T=12,B=30;x.clearRect(0,0,W,H);x.strokeStyle='#29445e';x.beginPath();x.moveTo(L,T);x.lineTo(L,H-B);x.lineTo(W-R,H-B);x.stroke();let ymax=Math.max(1,...results.flatMap(z=>z.trace.map(q=>q.backlog)));for(let z of results){x.strokeStyle=COLORS[z.type];x.lineWidth=2;x.beginPath();z.trace.forEach((q,i)=>{let px=L+i/(c.horizon-1)*(W-L-R),py=T+(1-q.backlog/ymax)*(H-T-B);i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke()}x.fillStyle='#9fb3c8';x.font='12px system-ui';x.fillText('0',24,H-B+4);x.fillText(String(ymax),8,T+5);x.fillText('RAO',W/2,H-7)}

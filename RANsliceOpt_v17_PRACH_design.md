@@ -23,7 +23,11 @@ PPO is trained on non-evaluation moderate, severe, and extreme storms. The displ
 
 ## Observations, actions, and outcomes
 
-The PPO state contains normalized backlog, new arrivals, recent collision and success ratios, accumulated failures, mean delay, and current control settings. Its actions are bounded gNB control profiles ranging from emergency throttling to fully open access.
+The PPO state contains normalized backlog, new arrivals, recent collision and success ratios, idle-preamble ratio, backlog and arrival trends, oldest-device wait, retry-exhaustion pressure, accumulated failures, mean delay, and current control settings. Its actions include bounded gNB control profiles plus independent admission, barring, and retry-backoff adjustments.
+
+Training penalizes collisions, failures, backlog, waiting pressure, and idle preambles while a backlog remains. It applies a terminal penalty for devices still unfinished at the end of an episode and a one-time reward for clearing the post-storm backlog. These terms align training with the evaluation treatment of unfinished devices and discourage a superficially low-collision policy that never reopens access.
+
+A disclosed gNB capacity guard masks PPO actions whose estimated admitted attempts exceed the current backlog-to-preamble envelope. During recovery, it also masks unnecessarily restrictive admission settings when idle preambles coexist with a backlog and the collision rate is low. The same mask is applied during training and evaluation; it constrains PPO to standards-compatible overload-control settings rather than replacing the learned policy.
 
 Reported outcomes are access success, access failures, collision rate, retries, mean and 95th-percentile access delay, peak backlog, and backlog-clearance RAO. Delay is derived from the configured RAO rate; it is simulated access delay, not measured network latency.
 
