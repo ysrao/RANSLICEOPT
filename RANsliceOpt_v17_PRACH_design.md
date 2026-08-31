@@ -1,10 +1,10 @@
-# Guarded PPO versus DQN for mIoT Random-Access Overload: A Reproducible Comparative Study
+# PPO versus DQN for mIoT Random-Access Overload: A Reproducible Comparative Study
 
 RANsliceOpt AI v17 PRACH-only experiment.
 
 ## Research question
 
-Can a gNB-side guarded PPO controller manage synchronized mIoT PRACH congestion more effectively than guarded DQN and deterministic gNB overload-control policies under identical held-out access storms?
+Can a gNB-side PPO controller manage synchronized mIoT PRACH congestion more effectively than DQN and deterministic gNB overload-control policies under identical held-out access storms?
 
 ## Scope
 
@@ -45,4 +45,4 @@ PPO is supported for a held-out test only when, relative to the best determinist
 
 A PPO loss or tie is retained and reported. The default settings are exploratory and are not evidence of general superiority. Confirmatory work requires frozen scenarios, independent seeds, confidence intervals, stronger calibrated baselines, and review against the applicable LTE/NR specifications.
 
-The browser artefact also provides a synthetic validation matrix. It evaluates trained guarded-PPO and guarded-DQN policies on moderate, severe, and extreme profiles over a configurable number of held-out traffic seeds, applies the same acceptance rule to every scenario, and reports direct PPO-versus-DQN win/tie/loss counts with a 95% Wilson interval for PPO's observed head-to-head win rate. This interval describes only the configured simulator matrix and is not a confidence statement about practical networks.
+The browser artefact also provides a synthetic validation matrix. It evaluates trained PPO and DQN policies on moderate, severe, and extreme profiles over a configurable number of held-out traffic seeds, applies the same acceptance rule to every scenario, and reports direct PPO-versus-DQN win/tie/loss counts with a 95% Wilson interval for PPO's observed head-to-head win rate. Both learning methods use the same disclosed action guard. This interval describes only the configured simulator matrix and is not a confidence statement about practical networks.
