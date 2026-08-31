@@ -67,6 +67,9 @@
    <div id="headToHead" class="status">PPO versus DQN has not been evaluated.</div>
    <h3>Backlog by RAO</h3><canvas id="chart" width="1000" height="300"></canvas>
    <div class="legend"><span><i class="dot" style="background:#a8b2bf"></i>No control</span><span><i class="dot" style="background:#ffae57"></i>Fixed ACB</span><span><i class="dot" style="background:#45a3ff"></i>Adaptive rule</span><span><i class="dot" style="background:#b47cff"></i>DQN</span><span><i class="dot" style="background:#45d19b"></i>PPO</span></div>
+   <h3>Backlog Samples</h3>
+   <div class="small">The table samples the graph at regular RAO intervals and includes storm boundaries. Time is derived from the configured RAOs per second.</div>
+   <div class="table-wrap"><table><thead><tr><th>RAO</th><th>Elapsed time (s)</th><th>No control</th><th>Fixed ACB</th><th>Adaptive rule</th><th>DQN</th><th>PPO</th></tr></thead><tbody id="backlogBody"><tr><td colspan="7" style="text-align:center">Run an evaluation to populate backlog samples.</td></tr></tbody></table></div>
   </div>
   <div class="panel" style="margin-top:14px"><h2>Trace and Assumptions</h2><div id="log" class="log">No trace available.</div></div>
   <div id="matrixPanel" class="panel hidden" style="margin-top:14px" tabindex="-1">
@@ -98,6 +101,7 @@ const ACTIONS=[
  {n:"backoff up",d:[0,0,2]},{n:"backoff down",d:[0,0,-2]}
 ];
 const STATE_SIZE=13;
+const HIDDEN_SIZE=24;
 const COLORS={none:"#a8b2bf",fixed:"#ffae57",rule:"#45a3ff",dqn:"#b47cff",ppo:"#45d19b"};
 let trained=null,trainedDqn=null,lastResults=null,lastCfg=null,lastMatrix=null;
 function hash01(seed,a,b,c){let x=(seed^Math.imul(a+1,0x9e3779b1)^Math.imul(b+7,0x85ebca6b)^Math.imul(c+13,0xc2b2ae35))>>>0;x^=x>>>16;x=Math.imul(x,0x7feb352d);x^=x>>>15;x=Math.imul(x,0x846ca68b);x^=x>>>16;return (x>>>0)/4294967296}
@@ -120,9 +124,12 @@ function ruleStep(ctrl,ctx,c){
  else if(ctx.lastCollision<c.ruleLow){ctrl.b=clamp(ctrl.b-1,1,40);ctrl.w=clamp(ctrl.w-1,1,40)}
 }
 function softmax(z){let m=Math.max(...z),e=z.map(x=>Math.exp(clamp(x-m,-30,30))),s=e.reduce((a,b)=>a+b,0);return e.map(x=>x/s)}
-function makeNet(r){let W=Array.from({length:ACTIONS.length},()=>Array.from({length:STATE_SIZE},()=>(r()-.5)*.18)),b=Array(ACTIONS.length).fill(0),v=Array.from({length:STATE_SIZE},()=>(r()-.5)*.1);return{W,b,v,vb:0}}
-function policy(net,s){return softmax(net.W.map((row,i)=>row.reduce((a,w,j)=>a+w*s[j],net.b[i])))}
-function value(net,s){return net.v.reduce((a,w,i)=>a+w*s[i],net.vb)}
+function matrix(rows,cols,r,scale=.15){return Array.from({length:rows},()=>Array.from({length:cols},()=>(r()-.5)*scale))}
+function makeNet(r){return{aW1:matrix(HIDDEN_SIZE,STATE_SIZE,r),ab1:Array(HIDDEN_SIZE).fill(0),aW2:matrix(ACTIONS.length,HIDDEN_SIZE,r),ab2:Array(ACTIONS.length).fill(0),cW1:matrix(HIDDEN_SIZE,STATE_SIZE,r),cb1:Array(HIDDEN_SIZE).fill(0),cv:Array.from({length:HIDDEN_SIZE},()=>(r()-.5)*.1),cvb:0}}
+function actorForward(net,s){let h=net.aW1.map((row,i)=>Math.tanh(row.reduce((v,w,j)=>v+w*s[j],net.ab1[i]))),probs=softmax(net.aW2.map((row,i)=>row.reduce((v,w,j)=>v+w*h[j],net.ab2[i])));return{h,probs}}
+function criticForward(net,s){let h=net.cW1.map((row,i)=>Math.tanh(row.reduce((v,w,j)=>v+w*s[j],net.cb1[i])));return{h,v:net.cv.reduce((v,w,j)=>v+w*h[j],net.cvb)}}
+function policy(net,s){return actorForward(net,s).probs}
+function value(net,s){return criticForward(net,s).v}
 function choose(probs,r){let u=r(),s=0;for(let i=0;i<probs.length;i++){s+=probs[i];if(u<=s)return i}return probs.length-1}
 function applyAction(ctrl,a){let x=ACTIONS[a];if(x.set){ctrl.p=x.set[0];ctrl.b=x.set[1];ctrl.w=x.set[2]}else if(x.d){ctrl.p=clamp(ctrl.p+x.d[0],.005,1);ctrl.b=clamp(ctrl.b+x.d[1],1,40);ctrl.w=clamp(ctrl.w+x.d[2],1,40)}}
 function maskedProbs(probs,mask){let x=probs.map((p,i)=>mask[i]?p:0),sum=x.reduce((a,b)=>a+b,0);return sum?x.map(p=>p/sum):probs}
@@ -133,12 +140,13 @@ function guardMask(ctrl,ctx,c){
  return mask;
 }
 function guardedPolicy(net,s,ctrl,ctx,c){let mask=guardMask(ctrl,ctx,c);return {probs:maskedProbs(policy(net,s),mask),mask}}
-function makeQNet(r){return{W:Array.from({length:ACTIONS.length},()=>Array.from({length:STATE_SIZE},()=>(r()-.5)*.1)),b:Array(ACTIONS.length).fill(0)}}
-function qValues(net,s){return net.W.map((row,a)=>row.reduce((v,w,j)=>v+w*s[j],net.b[a]))}
+function makeQNet(r){return{W1:matrix(HIDDEN_SIZE,STATE_SIZE,r),b1:Array(HIDDEN_SIZE).fill(0),W2:matrix(ACTIONS.length,HIDDEN_SIZE,r),b2:Array(ACTIONS.length).fill(0)}}
+function qForward(net,s){let h=net.W1.map((row,i)=>Math.tanh(row.reduce((v,w,j)=>v+w*s[j],net.b1[i]))),q=net.W2.map((row,a)=>row.reduce((v,w,j)=>v+w*h[j],net.b2[a]));return{h,q}}
+function qValues(net,s){return qForward(net,s).q}
 function qAction(net,s,mask,epsilon,r){let allowed=mask.map((x,i)=>x?i:-1).filter(i=>i>=0);if(r()<epsilon)return allowed[Math.floor(r()*allowed.length)];let q=qValues(net,s),best=allowed[0];for(let a of allowed)if(q[a]>q[best])best=a;return best}
-function copyQ(net){return{W:net.W.map(r=>[...r]),b:[...net.b]}}
+function copyQ(net){return{W1:net.W1.map(r=>[...r]),b1:[...net.b1],W2:net.W2.map(r=>[...r]),b2:[...net.b2]}}
 function qUpdate(net,target,batch,c){
- for(let x of batch){let q=qValues(net,x.s)[x.a],next=x.done?0:Math.max(...qValues(target,x.ns).map((v,a)=>x.nmask[a]?v:-Infinity)),y=x.r+c.gamma*next,err=clamp(y-q,-5,5);net.b[x.a]+=c.lr*err;for(let j=0;j<STATE_SIZE;j++)net.W[x.a][j]+=c.lr*err*x.s[j]}
+ for(let x of batch){let f=qForward(net,x.s),q=f.q[x.a],next=x.done?0:Math.max(...qValues(target,x.ns).map((v,a)=>x.nmask[a]?v:-Infinity)),y=x.r+c.gamma*next,err=clamp(y-q,-5,5),old=[...net.W2[x.a]],gh=old.map((w,j)=>w*err*(1-f.h[j]*f.h[j]));net.b2[x.a]+=c.lr*err;for(let j=0;j<HIDDEN_SIZE;j++)net.W2[x.a][j]+=c.lr*err*f.h[j];for(let j=0;j<HIDDEN_SIZE;j++){net.b1[j]+=c.lr*gh[j];for(let k=0;k<STATE_SIZE;k++)net.W1[j][k]+=c.lr*gh[j]*x.s[k]}}
 }
 function percentile(a,p){if(!a.length)return 0;let x=[...a].sort((q,w)=>q-w),i=Math.min(x.length-1,Math.ceil(p*x.length)-1);return x[i]}
 function simulate(type,c,seed,net,training=false,actionRnd=null,epsilon=0){
@@ -168,17 +176,20 @@ function simulate(type,c,seed,net,training=false,actionRnd=null,epsilon=0){
  if((type==="ppo"||type==="dqn")&&training&&trajectory.length)trajectory[trajectory.length-1].reward-=6*unfinished/Math.max(1,devices.length);
  return {type,total:devices.length,successes,failures,retries,collisionRate:admittedTx?collisionTx/admittedTx:0,successRate:devices.length?successes/devices.length:0,meanDelay:delays.length?delays.reduce((a,b)=>a+b,0)/delays.length:0,p95:percentile(delays,.95),peak:Math.max(...trace.map(x=>x.backlog)),clearance:clearance===null?c.horizon:clearance,trace,trajectory};
 }
+function trainingConfig(c,ep){let u=hash01(424242,ep,1,1),v=hash01(424242,ep,2,2),profile=["moderate","severe","extreme"][ep%3],tc={...c,profile,devices:Math.round(c.devices*(.55+.8*u)),start:10+Math.floor(v*25),duration:5+Math.floor(hash01(424242,ep,3,3)*18),seed:10000+ep*7919};tc.horizon=Math.max(c.horizon,tc.start+tc.duration+60);return tc}
 function train(c){
  let r=rng(99173),net=makeNet(r),returns=[];
  for(let ep=0;ep<c.episodes;ep++){
-  let tc={...c,profile:["moderate","severe","extreme"][ep%3],devices:Math.round(c.devices*(.55+.8*r())),start:10+Math.floor(r()*25),duration:5+Math.floor(r()*18),seed:10000+ep*7919};tc.horizon=Math.max(c.horizon,tc.start+tc.duration+60);
+  let tc=trainingConfig(c,ep);
   let sim=simulate("ppo",tc,tc.seed,net,true,r),tr=sim.trajectory,G=0;returns=Array(tr.length);
   for(let i=tr.length-1;i>=0;i--){G=tr[i].reward+c.gamma*G;returns[i]=G}
   let vals=tr.map(x=>value(net,x.s)),adv=returns.map((x,i)=>x-vals[i]),m=adv.reduce((a,b)=>a+b,0)/adv.length,sd=Math.sqrt(adv.reduce((a,b)=>a+(b-m)*(b-m),0)/adv.length+1e-8);adv=adv.map(x=>(x-m)/sd);
   for(let epoch=0;epoch<3;epoch++)for(let i=0;i<tr.length;i++){
-   let x=tr[i],probs=maskedProbs(policy(net,x.s),x.mask),ratio=probs[x.a]/Math.max(x.oldProb,1e-9),use=(adv[i]>=0?Math.min(ratio,1+c.clip):Math.max(ratio,1-c.clip))*adv[i],coef=clamp(use,-3,3);
-   for(let a=0;a<ACTIONS.length;a++){let g=coef*((a===x.a?1:0)-probs[a]);net.b[a]+=c.lr*g;for(let j=0;j<STATE_SIZE;j++)net.W[a][j]+=c.lr*g*x.s[j]}
-   let err=clamp(returns[i]-value(net,x.s),-5,5);net.vb+=c.lr*.6*err;for(let j=0;j<STATE_SIZE;j++)net.v[j]+=c.lr*.6*err*x.s[j]
+   let x=tr[i],af=actorForward(net,x.s),probs=maskedProbs(af.probs,x.mask),ratio=probs[x.a]/Math.max(x.oldProb,1e-9),use=(adv[i]>=0?Math.min(ratio,1+c.clip):Math.max(ratio,1-c.clip))*adv[i],coef=clamp(use,-3,3),gz=probs.map((p,a)=>coef*((a===x.a?1:0)-p)),gh=Array(HIDDEN_SIZE).fill(0);
+   for(let j=0;j<HIDDEN_SIZE;j++){for(let a=0;a<ACTIONS.length;a++)gh[j]+=net.aW2[a][j]*gz[a];gh[j]*=1-af.h[j]*af.h[j]}
+   for(let a=0;a<ACTIONS.length;a++){net.ab2[a]+=c.lr*gz[a];for(let j=0;j<HIDDEN_SIZE;j++)net.aW2[a][j]+=c.lr*gz[a]*af.h[j]}
+   for(let j=0;j<HIDDEN_SIZE;j++){net.ab1[j]+=c.lr*gh[j];for(let k=0;k<STATE_SIZE;k++)net.aW1[j][k]+=c.lr*gh[j]*x.s[k]}
+   let cf=criticForward(net,x.s),err=clamp(returns[i]-cf.v,-5,5),cgh=net.cv.map((w,j)=>w*err*(1-cf.h[j]*cf.h[j]));net.cvb+=c.lr*.6*err;for(let j=0;j<HIDDEN_SIZE;j++)net.cv[j]+=c.lr*.6*err*cf.h[j];for(let j=0;j<HIDDEN_SIZE;j++){net.cb1[j]+=c.lr*.6*cgh[j];for(let k=0;k<STATE_SIZE;k++)net.cW1[j][k]+=c.lr*.6*cgh[j]*x.s[k]}
   }
  }
  return net;
@@ -186,7 +197,7 @@ function train(c){
 function trainDQN(c){
  let r=rng(77191),net=makeQNet(r),target=copyQ(net),replay=[],updates=0,maxReplay=12000;
  for(let ep=0;ep<c.episodes;ep++){
-  let tc={...c,profile:["moderate","severe","extreme"][ep%3],devices:Math.round(c.devices*(.55+.8*r())),start:10+Math.floor(r()*25),duration:5+Math.floor(r()*18),seed:30000+ep*6151};tc.horizon=Math.max(c.horizon,tc.start+tc.duration+60);
+  let tc=trainingConfig(c,ep);
   let epsilon=Math.max(.05,1-ep/(c.episodes*.8)),sim=simulate("dqn",tc,tc.seed,net,true,r,epsilon),tr=sim.trajectory;
   for(let i=0;i<tr.length;i++){let ns=i+1<tr.length?tr[i+1].s:tr[i].s,nmask=i+1<tr.length?tr[i+1].mask:tr[i].mask;replay.push({s:tr[i].s,a:tr[i].a,r:tr[i].reward,ns,nmask,done:i===tr.length-1});if(replay.length>maxReplay)replay.shift()}
   let batches=Math.min(24,Math.max(4,Math.floor(tr.length/12)));for(let u=0;u<batches;u++){let batch=Array.from({length:32},()=>replay[Math.floor(r()*replay.length)]);qUpdate(net,target,batch,c);updates++;if(updates%120===0)target=copyQ(net)}
@@ -205,10 +216,11 @@ function render(results,c){
  $('resultBody').innerHTML=results.map(x=>`<tr><td>${labels[x.type]}</td><td>${fmt(100*x.successRate,2)}</td><td class="${x.failures===Math.min(...results.map(z=>z.failures))?'best':''}">${x.failures}</td><td>${fmt(100*x.collisionRate,2)}</td><td>${x.retries}</td><td>${fmt(1000*x.meanDelay/c.raosPerSec,1)}</td><td>${fmt(1000*x.p95/c.raosPerSec,1)}</td><td>${x.peak}</td><td>${x.clearance}</td></tr>`).join('');
  let p=a.candidate,q=d.candidate,ok=a.ok;$('decision').className='status decision '+(ok?'pass':'fail');$('decision').textContent=`Rules comparison: PPO ${a.outcome}; DQN ${d.outcome} versus ${labels[bestDet.type]}.`;
  let h=compare(p,q),reverse=compare(q,p),head=h.ok?'PPO WIN':reverse.ok?'DQN WIN':(h.nonDegrade&&reverse.nonDegrade?'TIE':'MIXED TRADE-OFF');$('headToHead').textContent=`Direct learned-controller comparison: ${head}. PPO and DQN use the same state, action set, reward, capacity guard, training-episode count, and held-out traffic.`;
-  draw(results,c);$('log').textContent=`[V17 PRACH-ONLY EVALUATION]\nScope: synchronized mIoT contention; no scheduled PRB allocation\nTraffic seed: ${c.seed}; PPO initialization seed: 99173; DQN initialization seed: 77191\nStorm: ${c.profile}, ${c.devices} devices, RAOs ${c.start}-${c.start+c.duration-1}\nResources: ${c.preambles} contention preambles/RAO, ${c.raosPerSec} RAOs/s\nUE behavior: ACB gate, uniform preamble selection, collision, randomized backoff, maximum ${c.maxAttempts} attempts\nBaselines: no control; fixed ACB; adaptive threshold rule\nLearned controllers: PPO and DQN with identical states, actions, rewards, and action guard\nCommon action guard: offered-attempt ceiling from backlog/preamble envelope; recovery floor when idle preambles coexist with backlog\nDQN: replay buffer, epsilon-greedy exploration, target network; updates=${trainedDqn?.updates||0}\nAcceptance: no more failures, no >5% P95-delay degradation, no material success degradation, plus >=5% improvement in failures, collision rate, or P95 delay\nPPO versus rules: ${a.outcome}; DQN versus rules: ${d.outcome}; PPO versus DQN: ${head}\nCaveat: aggregate research simulator; not 3GPP conformance or field performance.`;
+  draw(results,c);renderBacklogTable(results,c);$('log').textContent=`[V17 PRACH-ONLY EVALUATION]\nScope: synchronized mIoT contention; no scheduled PRB allocation\nTraffic seed: ${c.seed}; PPO initialization seed: 99173; DQN initialization seed: 77191\nStorm: ${c.profile}, ${c.devices} devices, RAOs ${c.start}-${c.start+c.duration-1}\nResources: ${c.preambles} contention preambles/RAO, ${c.raosPerSec} RAOs/s\nUE behavior: ACB gate, uniform preamble selection, collision, randomized backoff, maximum ${c.maxAttempts} attempts\nBaselines: no control; fixed ACB; adaptive threshold rule\nLearned controllers: PPO and DQN with identical states, actions, rewards, and action guard\nCommon action guard: offered-attempt ceiling from backlog/preamble envelope; recovery floor when idle preambles coexist with backlog\nDQN: replay buffer, epsilon-greedy exploration, target network; updates=${trainedDqn?.updates||0}\nAcceptance: no more failures, no >5% P95-delay degradation, no material success degradation, plus >=5% improvement in failures, collision rate, or P95 delay\nPPO versus rules: ${a.outcome}; DQN versus rules: ${d.outcome}; PPO versus DQN: ${head}\nCaveat: aggregate research simulator; not 3GPP conformance or field performance.`;
  $('csvBtn').disabled=false;$('resultPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
-function draw(results,c){let cv=$('chart'),x=cv.getContext('2d'),W=cv.width,H=cv.height,L=48,R=12,T=12,B=30;x.clearRect(0,0,W,H);x.strokeStyle='#29445e';x.beginPath();x.moveTo(L,T);x.lineTo(L,H-B);x.lineTo(W-R,H-B);x.stroke();let ymax=Math.max(1,...results.flatMap(z=>z.trace.map(q=>q.backlog)));for(let z of results){x.strokeStyle=COLORS[z.type];x.lineWidth=2;x.beginPath();z.trace.forEach((q,i)=>{let px=L+i/(c.horizon-1)*(W-L-R),py=T+(1-q.backlog/ymax)*(H-T-B);i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke()}x.fillStyle='#9fb3c8';x.font='12px system-ui';x.fillText('0',24,H-B+4);x.fillText(String(ymax),8,T+5);x.fillText('RAO',W/2,H-7)}
+function draw(results,c){let cv=$('chart'),x=cv.getContext('2d'),W=cv.width,H=cv.height,L=52,R=14,T=12,B=48;x.clearRect(0,0,W,H);x.strokeStyle='#29445e';x.beginPath();x.moveTo(L,T);x.lineTo(L,H-B);x.lineTo(W-R,H-B);x.stroke();let ymax=Math.max(1,...results.flatMap(z=>z.trace.map(q=>q.backlog)));for(let z of results){x.strokeStyle=COLORS[z.type];x.lineWidth=2;x.beginPath();z.trace.forEach((q,i)=>{let px=L+i/(c.horizon-1)*(W-L-R),py=T+(1-q.backlog/ymax)*(H-T-B);i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke()}x.fillStyle='#9fb3c8';x.font='11px system-ui';x.fillText('0',28,H-B+4);x.fillText(String(ymax),8,T+5);let ticks=6;for(let k=0;k<=ticks;k++){let rao=Math.round(k*(c.horizon-1)/ticks),px=L+rao/(c.horizon-1)*(W-L-R);x.strokeStyle='#29445e';x.beginPath();x.moveTo(px,H-B);x.lineTo(px,H-B+5);x.stroke();x.textAlign='center';x.fillStyle='#9fb3c8';x.fillText(String(rao),px,H-B+17);x.fillText(`${fmt(rao/c.raosPerSec,1)}s`,px,H-B+31)}x.textAlign='left';x.fillText(`RAO scale · ${c.raosPerSec} RAOs/s`,L,H-5)}
+function renderBacklogTable(results,c){let by=Object.fromEntries(results.map(x=>[x.type,x])),points=new Set([0,c.start,c.start+c.duration-1,c.horizon-1]),step=Math.max(1,Math.round(c.horizon/12));for(let t=0;t<c.horizon;t+=step)points.add(t);let order=[...points].filter(t=>t>=0&&t<c.horizon).sort((a,b)=>a-b);$('backlogBody').innerHTML=order.map(t=>`<tr><td>${t}</td><td>${fmt(t/c.raosPerSec,1)}</td><td>${by.none.trace[t].backlog}</td><td>${by.fixed.trace[t].backlog}</td><td>${by.rule.trace[t].backlog}</td><td>${by.dqn.trace[t].backlog}</td><td>${by.ppo.trace[t].backlog}</td></tr>`).join('')}
 async function run(all=true){let c=cfg();try{validate(c)}catch(e){$('status').textContent=e.message;return}$('runBtn').disabled=true;$('trainBtn').disabled=true;$('status').textContent='Training PPO and DQN on non-evaluation storms…';await new Promise(r=>setTimeout(r,40));try{trained=train(c);trainedDqn=trainDQN(c);$('status').textContent=`PPO and DQN training complete (${c.episodes} episodes each).`;if(all){await new Promise(r=>setTimeout(r,20));$('status').textContent='Running five controllers on the identical held-out arrival schedule…';let results=['none','fixed','rule','dqn','ppo'].map(k=>simulate(k,c,c.seed,k==='ppo'?trained:k==='dqn'?trainedDqn:null));lastResults=results;lastCfg=c;render(results,c);$('status').textContent='Matched PPO–DQN PRACH evaluation complete.'}}catch(e){$('status').textContent='Evaluation halted: '+e.message;console.error(e)}finally{$('runBtn').disabled=false;$('trainBtn').disabled=false}}
 function wilson(w,n){if(!n)return[0,0];let z=1.96,p=w/n,d=1+z*z/n,c=(p+z*z/(2*n))/d,h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d;return[clamp(c-h,0,1),clamp(c+h,0,1)]}
 async function runMatrix(){

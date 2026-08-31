@@ -22,7 +22,7 @@ All controllers receive the same exogenous arrival schedule, preamble resources,
 4. DQN: a gNB-side Q-network uses epsilon-greedy exploration, replay memory, and a target network to select a permitted admission, barring, or retry-backoff action.
 5. PPO: a gNB-side actor observes aggregate PRACH state and selects a bounded control profile for admission, barring, and retry backoff.
 
-PPO and DQN are trained on non-evaluation moderate, severe, and extreme storms. They receive the same state, action set, reward, action guard, training-episode count, and held-out traffic. DQN reuses replay samples while PPO is on-policy, so the artefact discloses the algorithmic distinction rather than claiming identical optimizer-update counts. The displayed evaluation seed is held out from training.
+PPO and DQN are trained on the exact same generated sequence of non-evaluation moderate, severe, and extreme storms. They receive the same state, action set, reward, action guard, training-episode count, environment-interaction count, and held-out traffic. DQN reuses replay samples while PPO is on-policy, so the artefact discloses the algorithmic distinction rather than claiming identical optimizer-update counts. The displayed evaluation seed is held out from training.
 
 ## Observations, actions, and outcomes
 
