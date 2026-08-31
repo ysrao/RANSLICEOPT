@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RANsliceOpt AI v17 — PPO-Based PRACH Overload Control for mIoT</title>
+<title>Guarded PPO versus DQN for mIoT Random-Access Overload: A Reproducible Comparative Study</title>
 <style>
 :root{--bg:#07111d;--panel:#0d1c2c;--line:#29445e;--text:#eaf2fb;--muted:#9fb3c8;--blue:#45a3ff;--green:#45d19b;--orange:#ffae57;--red:#ff6b72;--gray:#a8b2bf}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}header{padding:20px;max-width:1480px;margin:auto}h1{font-size:clamp(20px,3vw,32px);margin:0 0 6px}.subtitle,.small{color:var(--muted)}.wrap{max-width:1480px;margin:auto;padding:0 18px 28px}.grid{display:grid;grid-template-columns:minmax(290px,390px) 1fr;gap:14px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}.controls{align-self:start}.row{display:grid;grid-template-columns:1.25fr 1fr;gap:10px;align-items:center;margin:8px 0}.row label{color:#d7e5f3}.row input,.row select,button{width:100%;border:1px solid #3a5873;border-radius:7px;background:#081522;color:var(--text);padding:8px}button{cursor:pointer;font-weight:700}button.primary{background:#1769aa}button.warn{background:#8a551b}button:disabled{opacity:.6;cursor:wait}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.buttons .wide{grid-column:1/-1}.status{margin-top:10px;padding:10px;border-radius:8px;background:#081522;border:1px solid var(--line)}details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}summary{cursor:pointer;font-weight:700}.cards{display:grid;grid-template-columns:repeat(4,minmax(145px,1fr));gap:10px}.card{background:#081522;border:1px solid var(--line);border-radius:9px;padding:10px}.card .v{font-size:20px;font-weight:800}.table-wrap{overflow:auto;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:880px}th,td{text-align:right;padding:8px;border-bottom:1px solid #20384e}th:first-child,td:first-child{text-align:left}th{color:#bdd1e5}.best{color:var(--green);font-weight:800}.bad{color:var(--red)}canvas{width:100%;height:260px;background:#081522;border:1px solid var(--line);border-radius:8px;margin-top:10px}.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}.log{white-space:pre-wrap;max-height:260px;overflow:auto;background:#050d16;border:1px solid var(--line);padding:10px;border-radius:8px;font:12px ui-monospace,monospace}.notice{border-left:4px solid var(--orange);padding-left:10px}.hidden{display:none}.decision.pass{border-color:var(--green)}.decision.fail{border-color:var(--orange)}
@@ -12,8 +12,9 @@
 </head>
 <body>
 <header>
- <h1>RANsliceOpt AI v17 — PPO-Based PRACH Congestion and Overload Control for mIoT</h1>
- <div class="subtitle">TR 37.868-inspired research simulation · gNB-side control · matched PPO versus deterministic baselines · 5G/6G-oriented, not a conformance implementation</div>
+ <h1>Guarded PPO versus DQN for mIoT Random-Access Overload</h1>
+ <div class="subtitle"><strong>RANsliceOpt AI v17 — A Reproducible Comparative Study</strong></div>
+ <div class="subtitle">TR 37.868-inspired research simulation · gNB-side control · matched learned and deterministic baselines · 5G/6G-oriented, not a conformance implementation</div>
 </header>
 <main class="wrap">
 <div class="grid">
@@ -30,8 +31,8 @@
   <div class="row"><label for="raosPerSec">RAOs per second</label><input id="raosPerSec" type="number" value="10" min="1" max="100"></div>
   <div class="row"><label for="maxAttempts">Maximum attempts / device</label><input id="maxAttempts" type="number" value="10" min="1" max="20"></div>
   <div class="buttons">
-   <button id="trainBtn">Train PPO only</button><button id="resetBtn">Reset defaults</button>
-   <button id="runBtn" class="primary wide">Train and Run Matched Evaluation</button>
+   <button id="trainBtn">Train PPO + DQN only</button><button id="resetBtn">Reset defaults</button>
+   <button id="runBtn" class="primary wide">Train and Run PPO–DQN Evaluation</button>
    <button id="matrixBtn" class="warn wide">Run Multi-Scenario Validation Matrix</button>
    <button id="csvBtn" class="wide" disabled>Download Results CSV</button>
   </div>
@@ -62,9 +63,10 @@
     <div class="card"><div class="small">Matched evaluation seed</div><div id="kSeed" class="v">—</div></div>
    </div>
    <div class="table-wrap"><table><thead><tr><th>Controller</th><th>Success %</th><th>Failures</th><th>Collision %</th><th>Retries</th><th>Mean delay ms</th><th>P95 delay ms</th><th>Peak backlog</th><th>Clearance RAO</th></tr></thead><tbody id="resultBody"><tr><td colspan="9" style="text-align:center">Run the matched evaluation to populate results.</td></tr></tbody></table></div>
-   <div id="decision" class="status decision">PPO acceptance has not been evaluated.</div>
+   <div id="decision" class="status decision">PPO and DQN acceptance has not been evaluated.</div>
+   <div id="headToHead" class="status">PPO versus DQN has not been evaluated.</div>
    <h3>Backlog by RAO</h3><canvas id="chart" width="1000" height="300"></canvas>
-   <div class="legend"><span><i class="dot" style="background:#a8b2bf"></i>No control</span><span><i class="dot" style="background:#ffae57"></i>Fixed ACB</span><span><i class="dot" style="background:#45a3ff"></i>Adaptive rule</span><span><i class="dot" style="background:#45d19b"></i>PPO</span></div>
+   <div class="legend"><span><i class="dot" style="background:#a8b2bf"></i>No control</span><span><i class="dot" style="background:#ffae57"></i>Fixed ACB</span><span><i class="dot" style="background:#45a3ff"></i>Adaptive rule</span><span><i class="dot" style="background:#b47cff"></i>DQN</span><span><i class="dot" style="background:#45d19b"></i>PPO</span></div>
   </div>
   <div class="panel" style="margin-top:14px"><h2>Trace and Assumptions</h2><div id="log" class="log">No trace available.</div></div>
   <div id="matrixPanel" class="panel hidden" style="margin-top:14px" tabindex="-1">
@@ -77,7 +79,7 @@
     <div class="card"><div class="small">95% win-rate interval</div><div id="mCI" class="v">—</div></div>
    </div>
    <div id="matrixDecision" class="status">No matrix has been run.</div>
-   <div class="table-wrap"><table><thead><tr><th>Profile</th><th>Seed</th><th>Outcome</th><th>Best deterministic</th><th>PPO success %</th><th>PPO failures</th><th>PPO collision %</th><th>PPO P95 ms</th></tr></thead><tbody id="matrixBody"></tbody></table></div>
+   <div class="table-wrap"><table><thead><tr><th>Profile</th><th>Seed</th><th>PPO vs DQN</th><th>PPO vs rules</th><th>DQN vs rules</th><th>PPO failures</th><th>DQN failures</th><th>PPO P95 ms</th><th>DQN P95 ms</th></tr></thead><tbody id="matrixBody"></tbody></table></div>
    <button id="matrixCsvBtn" style="margin-top:10px" disabled>Download Matrix CSV</button>
   </div>
  </section>
@@ -96,8 +98,8 @@ const ACTIONS=[
  {n:"backoff up",d:[0,0,2]},{n:"backoff down",d:[0,0,-2]}
 ];
 const STATE_SIZE=13;
-const COLORS={none:"#a8b2bf",fixed:"#ffae57",rule:"#45a3ff",ppo:"#45d19b"};
-let trained=null,lastResults=null,lastCfg=null,lastMatrix=null;
+const COLORS={none:"#a8b2bf",fixed:"#ffae57",rule:"#45a3ff",dqn:"#b47cff",ppo:"#45d19b"};
+let trained=null,trainedDqn=null,lastResults=null,lastCfg=null,lastMatrix=null;
 function hash01(seed,a,b,c){let x=(seed^Math.imul(a+1,0x9e3779b1)^Math.imul(b+7,0x85ebca6b)^Math.imul(c+13,0xc2b2ae35))>>>0;x^=x>>>16;x=Math.imul(x,0x7feb352d);x^=x>>>15;x=Math.imul(x,0x846ca68b);x^=x>>>16;return (x>>>0)/4294967296}
 function rng(seed){let s=seed>>>0;return()=>{s=(Math.imul(1664525,s)+1013904223)>>>0;return s/4294967296}}
 function poisson(lambda,r){if(lambda<=0)return 0;if(lambda>30){let z=Math.sqrt(-2*Math.log(Math.max(r(),1e-9)))*Math.cos(2*Math.PI*r());return Math.max(0,Math.round(lambda+Math.sqrt(lambda)*z))}let l=Math.exp(-lambda),p=1,k=0;do{k++;p*=r()}while(p>l);return k-1}
@@ -124,14 +126,22 @@ function value(net,s){return net.v.reduce((a,w,i)=>a+w*s[i],net.vb)}
 function choose(probs,r){let u=r(),s=0;for(let i=0;i<probs.length;i++){s+=probs[i];if(u<=s)return i}return probs.length-1}
 function applyAction(ctrl,a){let x=ACTIONS[a];if(x.set){ctrl.p=x.set[0];ctrl.b=x.set[1];ctrl.w=x.set[2]}else if(x.d){ctrl.p=clamp(ctrl.p+x.d[0],.005,1);ctrl.b=clamp(ctrl.b+x.d[1],1,40);ctrl.w=clamp(ctrl.w+x.d[2],1,40)}}
 function maskedProbs(probs,mask){let x=probs.map((p,i)=>mask[i]?p:0),sum=x.reduce((a,b)=>a+b,0);return sum?x.map(p=>p/sum):probs}
-function guardedPolicy(net,s,ctrl,ctx,c){
- let raw=policy(net,s),targetMax=clamp(.90*c.preambles/Math.max(1,ctx.backlog),.005,1),targetMin=(ctx.lastIdle>.65&&ctx.lastCollision<.25)?clamp(.35*c.preambles/Math.max(1,ctx.backlog),.005,1):.005;
+function guardMask(ctrl,ctx,c){
+ let targetMax=clamp(.90*c.preambles/Math.max(1,ctx.backlog),.005,1),targetMin=(ctx.lastIdle>.65&&ctx.lastCollision<.25)?clamp(.35*c.preambles/Math.max(1,ctx.backlog),.005,1):.005;
  let candidates=ACTIONS.map((_,a)=>{let q={...ctrl};applyAction(q,a);return q}),mask=candidates.map(q=>q.p<=targetMax*1.05&&q.p>=targetMin*.95);
  if(!mask.some(Boolean)){let target=(targetMin+targetMax)/2,best=0;for(let i=1;i<candidates.length;i++)if(Math.abs(candidates[i].p-target)<Math.abs(candidates[best].p-target))best=i;mask[best]=true}
- return {probs:maskedProbs(raw,mask),mask};
+ return mask;
+}
+function guardedPolicy(net,s,ctrl,ctx,c){let mask=guardMask(ctrl,ctx,c);return {probs:maskedProbs(policy(net,s),mask),mask}}
+function makeQNet(r){return{W:Array.from({length:ACTIONS.length},()=>Array.from({length:STATE_SIZE},()=>(r()-.5)*.1)),b:Array(ACTIONS.length).fill(0)}}
+function qValues(net,s){return net.W.map((row,a)=>row.reduce((v,w,j)=>v+w*s[j],net.b[a]))}
+function qAction(net,s,mask,epsilon,r){let allowed=mask.map((x,i)=>x?i:-1).filter(i=>i>=0);if(r()<epsilon)return allowed[Math.floor(r()*allowed.length)];let q=qValues(net,s),best=allowed[0];for(let a of allowed)if(q[a]>q[best])best=a;return best}
+function copyQ(net){return{W:net.W.map(r=>[...r]),b:[...net.b]}}
+function qUpdate(net,target,batch,c){
+ for(let x of batch){let q=qValues(net,x.s)[x.a],next=x.done?0:Math.max(...qValues(target,x.ns).map((v,a)=>x.nmask[a]?v:-Infinity)),y=x.r+c.gamma*next,err=clamp(y-q,-5,5);net.b[x.a]+=c.lr*err;for(let j=0;j<STATE_SIZE;j++)net.W[x.a][j]+=c.lr*err*x.s[j]}
 }
 function percentile(a,p){if(!a.length)return 0;let x=[...a].sort((q,w)=>q-w),i=Math.min(x.length-1,Math.ceil(p*x.length)-1);return x[i]}
-function simulate(type,c,seed,net,training=false,actionRnd=null){
+function simulate(type,c,seed,net,training=false,actionRnd=null,epsilon=0){
  let schedule=arrivals(c,seed),ctrl=controls(type,c),devices=[],nextId=0,failures=0,retries=0,successes=0,collisionTx=0,admittedTx=0,delays=[],trace=[],trajectory=[],lastCollision=0,lastSuccess=1,lastIdle=1,prevBacklog=0,prevNew=0,clearance=null,clearanceRewarded=false;
  let prng=actionRnd||rng(seed^0x51f15e);
  for(let t=0;t<c.horizon;t++){
@@ -140,6 +150,7 @@ function simulate(type,c,seed,net,training=false,actionRnd=null){
   let action=0,oldProb=1;
   if(type==="rule")ruleStep(ctrl,ctx,c);
   if(type==="ppo"){let st=stateVec(ctx,c),guard=guardedPolicy(net,st,ctrl,ctx,c),probs=guard.probs;action=training?choose(probs,prng):probs.indexOf(Math.max(...probs));oldProb=probs[action];applyAction(ctrl,action);trajectory.push({s:st,a:action,oldProb,mask:guard.mask,reward:0})}
+  if(type==="dqn"){let st=stateVec(ctx,c),mask=guardMask(ctrl,ctx,c);action=qAction(net,st,mask,training?epsilon:0,prng);applyAction(ctrl,action);trajectory.push({s:st,a:action,mask,reward:0})}
   let due=active.filter(d=>d.next<=t),admitted=[];
   for(let d of due){let gate=hash01(seed,d.id,t,11);if(gate<=ctrl.p)admitted.push(d);else d.next=t+1+Math.floor(hash01(seed,d.id,t,12)*ctrl.b)}
   let bins=Array.from({length:c.preambles},()=>[]);for(let d of admitted){let p=Math.floor(hash01(seed,d.id,d.attempts,13)*c.preambles);bins[p].push(d);d.attempts++;admittedTx++}
@@ -149,12 +160,12 @@ function simulate(type,c,seed,net,training=false,actionRnd=null){
   let backlog=devices.reduce((n,d)=>n+(!d.done?1:0),0);if(t>=c.start+c.duration&&backlog===0&&clearance===null)clearance=t;
   let idleWaste=lastIdle*backlog/Math.max(1,c.devices),reward=stepSuccess/Math.max(1,c.preambles)-1.2*lastCollision-2.5*stepFail/Math.max(1,newN+due.length)-1.5*backlog/Math.max(1,c.devices)-1.1*idleWaste-.03*(ctrl.b+ctrl.w)/80;
   if(t>=c.start+c.duration&&backlog===0&&!clearanceRewarded){reward+=2;clearanceRewarded=true}
-  if(type==="ppo")trajectory[trajectory.length-1].reward=reward;
+  if(type==="ppo"||type==="dqn")trajectory[trajectory.length-1].reward=reward;
   trace.push({t,backlog,collision:lastCollision,success:stepSuccess,fail:stepFail,p:ctrl.p,b:ctrl.b,w:ctrl.w,action});
   prevBacklog=backlog;prevNew=newN;
  }
  let unfinished=devices.filter(d=>!d.done).length;failures+=unfinished;
- if(type==="ppo"&&training&&trajectory.length)trajectory[trajectory.length-1].reward-=6*unfinished/Math.max(1,devices.length);
+ if((type==="ppo"||type==="dqn")&&training&&trajectory.length)trajectory[trajectory.length-1].reward-=6*unfinished/Math.max(1,devices.length);
  return {type,total:devices.length,successes,failures,retries,collisionRate:admittedTx?collisionTx/admittedTx:0,successRate:devices.length?successes/devices.length:0,meanDelay:delays.length?delays.reduce((a,b)=>a+b,0)/delays.length:0,p95:percentile(delays,.95),peak:Math.max(...trace.map(x=>x.backlog)),clearance:clearance===null?c.horizon:clearance,trace,trajectory};
 }
 function train(c){
@@ -172,32 +183,43 @@ function train(c){
  }
  return net;
 }
+function trainDQN(c){
+ let r=rng(77191),net=makeQNet(r),target=copyQ(net),replay=[],updates=0,maxReplay=12000;
+ for(let ep=0;ep<c.episodes;ep++){
+  let tc={...c,profile:["moderate","severe","extreme"][ep%3],devices:Math.round(c.devices*(.55+.8*r())),start:10+Math.floor(r()*25),duration:5+Math.floor(r()*18),seed:30000+ep*6151};tc.horizon=Math.max(c.horizon,tc.start+tc.duration+60);
+  let epsilon=Math.max(.05,1-ep/(c.episodes*.8)),sim=simulate("dqn",tc,tc.seed,net,true,r,epsilon),tr=sim.trajectory;
+  for(let i=0;i<tr.length;i++){let ns=i+1<tr.length?tr[i+1].s:tr[i].s,nmask=i+1<tr.length?tr[i+1].mask:tr[i].mask;replay.push({s:tr[i].s,a:tr[i].a,r:tr[i].reward,ns,nmask,done:i===tr.length-1});if(replay.length>maxReplay)replay.shift()}
+  let batches=Math.min(24,Math.max(4,Math.floor(tr.length/12)));for(let u=0;u<batches;u++){let batch=Array.from({length:32},()=>replay[Math.floor(r()*replay.length)]);qUpdate(net,target,batch,c);updates++;if(updates%120===0)target=copyQ(net)}
+ }
+ net.updates=updates;return net;
+}
 function fmt(n,d=1){return Number(n).toFixed(d)}
-function assess(results){
- const bestDet=results.filter(x=>x.type!=="ppo").sort((a,b)=>a.failures-b.failures||a.p95-b.p95)[0],p=results.find(x=>x.type==="ppo"),nonDegrade=p.failures<=bestDet.failures&&p.p95<=bestDet.p95*1.05&&p.successRate+1e-9>=bestDet.successRate-.002,improve=p.failures<=bestDet.failures*.95||p.collisionRate<=bestDet.collisionRate*.95||p.p95<=bestDet.p95*.95;
- return {bestDet,p,nonDegrade,improve,ok:nonDegrade&&improve,outcome:nonDegrade?(improve?'WIN':'TIE'):'LOSS'};
+function compare(candidate,baseline){let nonDegrade=candidate.failures<=baseline.failures&&candidate.p95<=baseline.p95*1.05&&candidate.successRate+1e-9>=baseline.successRate-.002,improve=(baseline.failures>0&&candidate.failures<=baseline.failures*.95)||(baseline.collisionRate>0&&candidate.collisionRate<=baseline.collisionRate*.95)||(baseline.p95>0&&candidate.p95<=baseline.p95*.95);return{nonDegrade,improve,ok:nonDegrade&&improve,outcome:nonDegrade?(improve?'WIN':'TIE'):'LOSS'}}
+function assess(results,type="ppo"){
+ const bestDet=results.filter(x=>!['ppo','dqn'].includes(x.type)).sort((a,b)=>a.failures-b.failures||a.p95-b.p95)[0],candidate=results.find(x=>x.type===type),z=compare(candidate,bestDet);
+ return {bestDet,candidate,...z};
 }
 function render(results,c){
- const labels={none:"No control",fixed:"Fixed ACB",rule:"Adaptive rule",ppo:"PPO"},a=assess(results),bestDet=a.bestDet;
+ const labels={none:"No control",fixed:"Fixed ACB",rule:"Adaptive rule",dqn:"Guarded DQN",ppo:"Guarded PPO"},a=assess(results,"ppo"),d=assess(results,"dqn"),bestDet=a.bestDet;
  $('kArrivals').textContent=c.devices.toLocaleString();$('kPreambles').textContent=c.preambles;$('kEpisodes').textContent=c.episodes;$('kSeed').textContent=c.seed;
  $('resultBody').innerHTML=results.map(x=>`<tr><td>${labels[x.type]}</td><td>${fmt(100*x.successRate,2)}</td><td class="${x.failures===Math.min(...results.map(z=>z.failures))?'best':''}">${x.failures}</td><td>${fmt(100*x.collisionRate,2)}</td><td>${x.retries}</td><td>${fmt(1000*x.meanDelay/c.raosPerSec,1)}</td><td>${fmt(1000*x.p95/c.raosPerSec,1)}</td><td>${x.peak}</td><td>${x.clearance}</td></tr>`).join('');
- let p=a.p,ok=a.ok;
- $('decision').className='status decision '+(ok?'pass':'fail');$('decision').textContent=ok?`SUPPORTED FOR THIS HELD-OUT TEST: guarded PPO is non-degrading versus the best deterministic controller (${labels[bestDet.type]}) and improves at least one predefined PRACH outcome by 5%.`:`NOT SUPPORTED FOR THIS HELD-OUT TEST: guarded PPO did not jointly satisfy failure, success, P95-delay, and 5% material-improvement conditions versus ${labels[bestDet.type]}.`;
-  draw(results,c);$('log').textContent=`[V17 PRACH-ONLY EVALUATION]\nScope: synchronized mIoT contention; no scheduled PRB allocation\nTraffic seed: ${c.seed}; PPO initialization seed: 99173\nStorm: ${c.profile}, ${c.devices} devices, RAOs ${c.start}-${c.start+c.duration-1}\nResources: ${c.preambles} contention preambles/RAO, ${c.raosPerSec} RAOs/s\nUE behavior: ACB gate, uniform preamble selection, collision, randomized backoff, maximum ${c.maxAttempts} attempts\nBaselines: no control; fixed ACB; adaptive threshold rule\nPPO actions: admission, barring and retry-backoff adjustments\nPPO capacity guard: offered-attempt ceiling from backlog/preamble envelope; recovery floor when idle preambles coexist with backlog\nAcceptance: no more failures, no >5% P95-delay degradation, no material success degradation, plus >=5% improvement in failures, collision rate, or P95 delay\nResult: ${ok?'SUPPORTED FOR THIS TEST':'NOT SUPPORTED FOR THIS TEST'}\nCaveat: aggregate research simulator; not 3GPP conformance or field performance.`;
+ let p=a.candidate,q=d.candidate,ok=a.ok;$('decision').className='status decision '+(ok?'pass':'fail');$('decision').textContent=`Rules comparison: PPO ${a.outcome}; DQN ${d.outcome} versus ${labels[bestDet.type]}.`;
+ let h=compare(p,q),reverse=compare(q,p),head=h.ok?'PPO WIN':reverse.ok?'DQN WIN':(h.nonDegrade&&reverse.nonDegrade?'TIE':'MIXED TRADE-OFF');$('headToHead').textContent=`Direct learned-controller comparison: ${head}. PPO and DQN use the same state, action set, reward, capacity guard, training-episode count, and held-out traffic.`;
+  draw(results,c);$('log').textContent=`[V17 PRACH-ONLY EVALUATION]\nScope: synchronized mIoT contention; no scheduled PRB allocation\nTraffic seed: ${c.seed}; PPO initialization seed: 99173; DQN initialization seed: 77191\nStorm: ${c.profile}, ${c.devices} devices, RAOs ${c.start}-${c.start+c.duration-1}\nResources: ${c.preambles} contention preambles/RAO, ${c.raosPerSec} RAOs/s\nUE behavior: ACB gate, uniform preamble selection, collision, randomized backoff, maximum ${c.maxAttempts} attempts\nBaselines: no control; fixed ACB; adaptive threshold rule\nLearned controllers: guarded PPO and guarded DQN with identical states/actions/rewards\nCapacity guard: offered-attempt ceiling from backlog/preamble envelope; recovery floor when idle preambles coexist with backlog\nDQN: replay buffer, epsilon-greedy exploration, target network; updates=${trainedDqn?.updates||0}\nAcceptance: no more failures, no >5% P95-delay degradation, no material success degradation, plus >=5% improvement in failures, collision rate, or P95 delay\nPPO versus rules: ${a.outcome}; DQN versus rules: ${d.outcome}; PPO versus DQN: ${head}\nCaveat: aggregate research simulator; not 3GPP conformance or field performance.`;
  $('csvBtn').disabled=false;$('resultPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function draw(results,c){let cv=$('chart'),x=cv.getContext('2d'),W=cv.width,H=cv.height,L=48,R=12,T=12,B=30;x.clearRect(0,0,W,H);x.strokeStyle='#29445e';x.beginPath();x.moveTo(L,T);x.lineTo(L,H-B);x.lineTo(W-R,H-B);x.stroke();let ymax=Math.max(1,...results.flatMap(z=>z.trace.map(q=>q.backlog)));for(let z of results){x.strokeStyle=COLORS[z.type];x.lineWidth=2;x.beginPath();z.trace.forEach((q,i)=>{let px=L+i/(c.horizon-1)*(W-L-R),py=T+(1-q.backlog/ymax)*(H-T-B);i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke()}x.fillStyle='#9fb3c8';x.font='12px system-ui';x.fillText('0',24,H-B+4);x.fillText(String(ymax),8,T+5);x.fillText('RAO',W/2,H-7)}
-async function run(all=true){let c=cfg();try{validate(c)}catch(e){$('status').textContent=e.message;return}$('runBtn').disabled=true;$('trainBtn').disabled=true;$('status').textContent='Training PPO on non-evaluation storms…';await new Promise(r=>setTimeout(r,40));try{trained=train(c);$('status').textContent=`PPO training complete (${c.episodes} episodes).`;if(all){await new Promise(r=>setTimeout(r,20));$('status').textContent='Running four controllers on the identical held-out arrival schedule…';let results=['none','fixed','rule','ppo'].map(k=>simulate(k,c,c.seed,k==='ppo'?trained:null));lastResults=results;lastCfg=c;render(results,c);$('status').textContent='Matched PRACH evaluation complete.'}}catch(e){$('status').textContent='Evaluation halted: '+e.message;console.error(e)}finally{$('runBtn').disabled=false;$('trainBtn').disabled=false}}
+async function run(all=true){let c=cfg();try{validate(c)}catch(e){$('status').textContent=e.message;return}$('runBtn').disabled=true;$('trainBtn').disabled=true;$('status').textContent='Training PPO and DQN on non-evaluation storms…';await new Promise(r=>setTimeout(r,40));try{trained=train(c);trainedDqn=trainDQN(c);$('status').textContent=`PPO and DQN training complete (${c.episodes} episodes each).`;if(all){await new Promise(r=>setTimeout(r,20));$('status').textContent='Running five controllers on the identical held-out arrival schedule…';let results=['none','fixed','rule','dqn','ppo'].map(k=>simulate(k,c,c.seed,k==='ppo'?trained:k==='dqn'?trainedDqn:null));lastResults=results;lastCfg=c;render(results,c);$('status').textContent='Matched PPO–DQN PRACH evaluation complete.'}}catch(e){$('status').textContent='Evaluation halted: '+e.message;console.error(e)}finally{$('runBtn').disabled=false;$('trainBtn').disabled=false}}
 function wilson(w,n){if(!n)return[0,0];let z=1.96,p=w/n,d=1+z*z/n,c=(p+z*z/(2*n))/d,h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d;return[clamp(c-h,0,1),clamp(c+h,0,1)]}
 async function runMatrix(){
  let base=cfg();try{validate(base)}catch(e){$('status').textContent=e.message;return}let n=clamp(base.matrixSeeds,3,50),profiles=[['moderate',1200,20],['severe',3000,10],['extreme',7000,5]],labels={none:'No control',fixed:'Fixed ACB',rule:'Adaptive rule'};
  $('matrixBtn').disabled=true;$('runBtn').disabled=true;$('status').textContent='Training PPO before validation matrix…';await new Promise(r=>setTimeout(r,40));
- try{trained=train(base);let rows=[];for(let pi=0;pi<profiles.length;pi++){let [profile,devices,duration]=profiles[pi];for(let i=0;i<n;i++){let c={...base,profile,devices,duration,seed:base.seed+pi*1000003+i*104729};c.horizon=Math.max(base.horizon,c.start+c.duration+120);let results=['none','fixed','rule','ppo'].map(k=>simulate(k,c,c.seed,k==='ppo'?trained:null)),a=assess(results);rows.push({profile,seed:c.seed,outcome:a.outcome,best:labels[a.bestDet.type],success:a.p.successRate,failures:a.p.failures,collision:a.p.collisionRate,p95:1000*a.p.p95/c.raosPerSec});$('status').textContent=`Validation matrix: ${rows.length}/${profiles.length*n} scenarios complete…`;if(rows.length%5===0)await new Promise(r=>setTimeout(r,0))}}
-  let wins=rows.filter(x=>x.outcome==='WIN').length,ties=rows.filter(x=>x.outcome==='TIE').length,losses=rows.length-wins-ties,ci=wilson(wins,rows.length);lastMatrix=rows;$('mWins').textContent=`${wins}/${rows.length}`;$('mTies').textContent=ties;$('mLosses').textContent=losses;$('mCI').textContent=`${fmt(100*ci[0],1)}–${fmt(100*ci[1],1)}%`;$('matrixDecision').textContent=`Observed synthetic win rate: ${fmt(100*wins/rows.length,1)}%. Its 95% Wilson interval is ${fmt(100*ci[0],1)}% to ${fmt(100*ci[1],1)}% for this configured matrix; it must not be interpreted as practical-network confidence.`;$('matrixBody').innerHTML=rows.map(x=>`<tr><td>${x.profile}</td><td>${x.seed}</td><td class="${x.outcome==='WIN'?'best':x.outcome==='LOSS'?'bad':''}">${x.outcome}</td><td>${x.best}</td><td>${fmt(100*x.success,2)}</td><td>${x.failures}</td><td>${fmt(100*x.collision,2)}</td><td>${fmt(x.p95,1)}</td></tr>`).join('');$('matrixPanel').classList.remove('hidden');$('matrixCsvBtn').disabled=false;$('status').textContent='Synthetic validation matrix complete.';$('matrixPanel').scrollIntoView({behavior:'smooth',block:'start'})
+ try{trained=train(base);trainedDqn=trainDQN(base);let rows=[];for(let pi=0;pi<profiles.length;pi++){let [profile,devices,duration]=profiles[pi];for(let i=0;i<n;i++){let c={...base,profile,devices,duration,seed:base.seed+pi*1000003+i*104729};c.horizon=Math.max(base.horizon,c.start+c.duration+120);let results=['none','fixed','rule','dqn','ppo'].map(k=>simulate(k,c,c.seed,k==='ppo'?trained:k==='dqn'?trainedDqn:null)),a=assess(results,'ppo'),d=assess(results,'dqn'),p=a.candidate,q=d.candidate,h=compare(p,q),reverse=compare(q,p),head=h.ok?'PPO WIN':reverse.ok?'DQN WIN':(h.nonDegrade&&reverse.nonDegrade?'TIE':'MIXED');rows.push({profile,seed:c.seed,head,ppoRules:a.outcome,dqnRules:d.outcome,pFail:p.failures,dFail:q.failures,pP95:1000*p.p95/c.raosPerSec,dP95:1000*q.p95/c.raosPerSec});$('status').textContent=`Validation matrix: ${rows.length}/${profiles.length*n} scenarios complete…`;if(rows.length%5===0)await new Promise(r=>setTimeout(r,0))}}
+  let wins=rows.filter(x=>x.head==='PPO WIN').length,ties=rows.filter(x=>x.head==='TIE'||x.head==='MIXED').length,losses=rows.filter(x=>x.head==='DQN WIN').length,ci=wilson(wins,rows.length);lastMatrix=rows;$('mWins').textContent=`${wins}/${rows.length}`;$('mTies').textContent=ties;$('mLosses').textContent=losses;$('mCI').textContent=`${fmt(100*ci[0],1)}–${fmt(100*ci[1],1)}%`;$('matrixDecision').textContent=`PPO beat DQN in ${fmt(100*wins/rows.length,1)}% of this synthetic matrix; DQN beat PPO in ${fmt(100*losses/rows.length,1)}%. The 95% Wilson interval for the PPO head-to-head win rate is ${fmt(100*ci[0],1)}% to ${fmt(100*ci[1],1)}%.`;$('matrixBody').innerHTML=rows.map(x=>`<tr><td>${x.profile}</td><td>${x.seed}</td><td class="${x.head==='PPO WIN'?'best':x.head==='DQN WIN'?'bad':''}">${x.head}</td><td>${x.ppoRules}</td><td>${x.dqnRules}</td><td>${x.pFail}</td><td>${x.dFail}</td><td>${fmt(x.pP95,1)}</td><td>${fmt(x.dP95,1)}</td></tr>`).join('');$('matrixPanel').classList.remove('hidden');$('matrixCsvBtn').disabled=false;$('status').textContent='Synthetic PPO–DQN validation matrix complete.';$('matrixPanel').scrollIntoView({behavior:'smooth',block:'start'})
  }catch(e){$('status').textContent='Validation matrix halted: '+e.message;console.error(e)}finally{$('matrixBtn').disabled=false;$('runBtn').disabled=false}
 }
 function csv(){if(!lastResults)return;let s='controller,total,successes,success_rate,failures,collision_rate,retries,mean_delay_ms,p95_delay_ms,peak_backlog,clearance_rao\n'+lastResults.map(x=>[x.type,x.total,x.successes,x.successRate,x.failures,x.collisionRate,x.retries,1000*x.meanDelay/lastCfg.raosPerSec,1000*x.p95/lastCfg.raosPerSec,x.peak,x.clearance].join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='RANsliceOpt_v17_PRACH_results.csv';a.click();URL.revokeObjectURL(a.href)}
-function matrixCsv(){if(!lastMatrix)return;let s='profile,seed,outcome,best_deterministic,ppo_success_rate,ppo_failures,ppo_collision_rate,ppo_p95_ms\n'+lastMatrix.map(x=>[x.profile,x.seed,x.outcome,x.best,x.success,x.failures,x.collision,x.p95].join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='RANsliceOpt_v17_PRACH_validation_matrix.csv';a.click();URL.revokeObjectURL(a.href)}
+function matrixCsv(){if(!lastMatrix)return;let s='profile,seed,ppo_vs_dqn,ppo_vs_rules,dqn_vs_rules,ppo_failures,dqn_failures,ppo_p95_ms,dqn_p95_ms\n'+lastMatrix.map(x=>[x.profile,x.seed,x.head,x.ppoRules,x.dqnRules,x.pFail,x.dFail,x.pP95,x.dP95].join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='RANsliceOpt_v17_PRACH_PPO_DQN_matrix.csv';a.click();URL.revokeObjectURL(a.href)}
 function reset(){location.reload()}
 $('runBtn').onclick=()=>run(true);$('trainBtn').onclick=()=>run(false);$('matrixBtn').onclick=runMatrix;$('resetBtn').onclick=reset;$('csvBtn').onclick=csv;$('matrixCsvBtn').onclick=matrixCsv;
 $('profile').onchange=()=>{if($('profile').value!=="custom")cfg()};

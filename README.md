@@ -19,7 +19,7 @@ retransmission timers, or the complete 3GPP random-access procedure.
 
 [`RANsliceOpt_AI_v17_PRACH.html`](RANsliceOpt_AI_v17_PRACH.html) is a separate,
 PRACH-only mIoT research simulation. It compares no control, fixed ACB, an
-adaptive deterministic gNB rule, and a gNB-side PPO policy under an identical
+adaptive deterministic gNB rule, guarded DQN, and guarded PPO under an identical
 held-out synchronized arrival schedule. The model explicitly represents
 contention preambles, collisions, randomized barring/backoff, retries, retry
 exhaustion, access failures, backlog, and access delay. It does not reallocate

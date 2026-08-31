@@ -1,8 +1,10 @@
-# RANsliceOpt AI v17 PRACH-only experiment
+# Guarded PPO versus DQN for mIoT Random-Access Overload: A Reproducible Comparative Study
+
+RANsliceOpt AI v17 PRACH-only experiment.
 
 ## Research question
 
-Can a gNB-side PPO controller manage synchronized mIoT PRACH congestion more effectively than deterministic gNB overload-control policies under identical held-out access storms?
+Can a gNB-side guarded PPO controller manage synchronized mIoT PRACH congestion more effectively than guarded DQN and deterministic gNB overload-control policies under identical held-out access storms?
 
 ## Scope
 
@@ -17,9 +19,10 @@ All controllers receive the same exogenous arrival schedule, preamble resources,
 1. No overload control: all eligible devices are admitted.
 2. Fixed ACB: admission probability, barring interval, and retry backoff remain fixed.
 3. Adaptive deterministic rule: admission is estimated from backlog and preamble capacity; barring and backoff respond to disclosed collision thresholds.
-4. PPO: a gNB-side actor observes aggregate PRACH state and selects a bounded control profile for admission, barring, and retry backoff.
+4. DQN: a gNB-side Q-network uses epsilon-greedy exploration, replay memory, and a target network to select a permitted admission, barring, or retry-backoff action.
+5. PPO: a gNB-side actor observes aggregate PRACH state and selects a bounded control profile for admission, barring, and retry backoff.
 
-PPO is trained on non-evaluation moderate, severe, and extreme storms. The displayed evaluation seed is held out from training.
+PPO and DQN are trained on non-evaluation moderate, severe, and extreme storms. They receive the same state, action set, reward, action guard, training-episode count, and held-out traffic. DQN reuses replay samples while PPO is on-policy, so the artefact discloses the algorithmic distinction rather than claiming identical optimizer-update counts. The displayed evaluation seed is held out from training.
 
 ## Observations, actions, and outcomes
 
@@ -42,4 +45,4 @@ PPO is supported for a held-out test only when, relative to the best determinist
 
 A PPO loss or tie is retained and reported. The default settings are exploratory and are not evidence of general superiority. Confirmatory work requires frozen scenarios, independent seeds, confidence intervals, stronger calibrated baselines, and review against the applicable LTE/NR specifications.
 
-The browser artefact also provides a synthetic validation matrix. It evaluates one trained guarded-PPO policy on moderate, severe, and extreme profiles over a configurable number of held-out traffic seeds, applies the same acceptance rule to every scenario, and reports win/tie/loss counts with a 95% Wilson interval for the observed synthetic win rate. This interval describes only the configured simulator matrix and is not a confidence statement about practical networks.
+The browser artefact also provides a synthetic validation matrix. It evaluates trained guarded-PPO and guarded-DQN policies on moderate, severe, and extreme profiles over a configurable number of held-out traffic seeds, applies the same acceptance rule to every scenario, and reports direct PPO-versus-DQN win/tie/loss counts with a 95% Wilson interval for PPO's observed head-to-head win rate. This interval describes only the configured simulator matrix and is not a confidence statement about practical networks.
