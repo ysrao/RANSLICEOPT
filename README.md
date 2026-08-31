@@ -15,6 +15,16 @@ abstraction**. It increases aggregate access-attempt load during matched PPO and
 rule evaluation; it does not simulate individual preambles, collisions, backoff,
 retransmission timers, or the complete 3GPP random-access procedure.
 
+## V17 PRACH Overload-Control Research Artifact
+
+[`RANsliceOpt_AI_v17_PRACH.html`](RANsliceOpt_AI_v17_PRACH.html) is a separate,
+PRACH-only mIoT research simulation. It compares no control, fixed ACB, an
+adaptive deterministic gNB rule, and a gNB-side PPO policy under an identical
+held-out synchronized arrival schedule. The model explicitly represents
+contention preambles, collisions, randomized barring/backoff, retries, retry
+exhaustion, access failures, backlog, and access delay. It does not reallocate
+scheduled slice PRBs and does not claim 3GPP conformance or field performance.
+
 The PPO path uses a hard SLA safety layer: unsafe actions have zero selection
 probability, a feasible resource projection is used when no local action is safe,
 and physically infeasible traffic/threshold combinations halt without applying an

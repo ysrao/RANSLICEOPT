@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RANsliceOpt AI v17 — PPO-Based PRACH Overload Control for mIoT</title>
+<style>
+:root{--bg:#07111d;--panel:#0d1c2c;--line:#29445e;--text:#eaf2fb;--muted:#9fb3c8;--blue:#45a3ff;--green:#45d19b;--orange:#ffae57;--red:#ff6b72;--gray:#a8b2bf}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}header{padding:20px;max-width:1480px;margin:auto}h1{font-size:clamp(20px,3vw,32px);margin:0 0 6px}.subtitle,.small{color:var(--muted)}.wrap{max-width:1480px;margin:auto;padding:0 18px 28px}.grid{display:grid;grid-template-columns:minmax(290px,390px) 1fr;gap:14px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}.controls{align-self:start}.row{display:grid;grid-template-columns:1.25fr 1fr;gap:10px;align-items:center;margin:8px 0}.row label{color:#d7e5f3}.row input,.row select,button{width:100%;border:1px solid #3a5873;border-radius:7px;background:#081522;color:var(--text);padding:8px}button{cursor:pointer;font-weight:700}button.primary{background:#1769aa}button.warn{background:#8a551b}button:disabled{opacity:.6;cursor:wait}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.buttons .wide{grid-column:1/-1}.status{margin-top:10px;padding:10px;border-radius:8px;background:#081522;border:1px solid var(--line)}details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}summary{cursor:pointer;font-weight:700}.cards{display:grid;grid-template-columns:repeat(4,minmax(145px,1fr));gap:10px}.card{background:#081522;border:1px solid var(--line);border-radius:9px;padding:10px}.card .v{font-size:20px;font-weight:800}.table-wrap{overflow:auto;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:880px}th,td{text-align:right;padding:8px;border-bottom:1px solid #20384e}th:first-child,td:first-child{text-align:left}th{color:#bdd1e5}.best{color:var(--green);font-weight:800}.bad{color:var(--red)}canvas{width:100%;height:260px;background:#081522;border:1px solid var(--line);border-radius:8px;margin-top:10px}.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}.log{white-space:pre-wrap;max-height:260px;overflow:auto;background:#050d16;border:1px solid var(--line);padding:10px;border-radius:8px;font:12px ui-monospace,monospace}.notice{border-left:4px solid var(--orange);padding-left:10px}.hidden{display:none}.decision.pass{border-color:var(--green)}.decision.fail{border-color:var(--orange)}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+ <h1>RANsliceOpt AI v17 — PPO-Based PRACH Congestion and Overload Control for mIoT</h1>
+ <div class="subtitle">TR 37.868-inspired research simulation · gNB-side control · matched PPO versus deterministic baselines · 5G/6G-oriented, not a conformance implementation</div>
+</header>
+<main class="wrap">
+<div class="grid">
+ <aside class="panel controls">
+  <h2>mIoT Access Storm</h2>
+  <div class="row"><label for="profile">Storm profile</label><select id="profile"><option value="moderate">Moderate</option><option value="severe" selected>Severe synchronized</option><option value="extreme">Extreme synchronized</option><option value="custom">Custom</option></select></div>
+  <div class="row"><label for="stormDevices">Activated mIoT devices</label><input id="stormDevices" type="number" value="3000" min="100" max="50000" step="100"></div>
+  <div class="row"><label for="startRao">Storm start RAO</label><input id="startRao" type="number" value="20" min="1" max="400"></div>
+  <div class="row"><label for="duration">Activation duration (RAOs)</label><input id="duration" type="number" value="10" min="1" max="100"></div>
+  <div class="row"><label for="horizon">Evaluation horizon (RAOs)</label><input id="horizon" type="number" value="300" min="40" max="500"></div>
+  <div class="row"><label for="evalSeed">Held-out seed</label><input id="evalSeed" type="number" value="24680" min="1" max="99999999"></div>
+  <h2>PRACH Resources</h2>
+  <div class="row"><label for="preambles">Contention preambles / RAO</label><input id="preambles" type="number" value="54" min="4" max="64"></div>
+  <div class="row"><label for="raosPerSec">RAOs per second</label><input id="raosPerSec" type="number" value="10" min="1" max="100"></div>
+  <div class="row"><label for="maxAttempts">Maximum attempts / device</label><input id="maxAttempts" type="number" value="10" min="1" max="20"></div>
+  <div class="buttons">
+   <button id="trainBtn">Train PPO only</button><button id="resetBtn">Reset defaults</button>
+   <button id="runBtn" class="primary wide">Train and Run Matched Evaluation</button>
+   <button id="csvBtn" class="wide" disabled>Download Results CSV</button>
+  </div>
+  <details>
+   <summary>Advanced PRACH Settings</summary>
+   <div class="row"><label for="background">Background arrivals / RAO</label><input id="background" type="number" value="2" min="0" max="50" step="1"></div>
+   <div class="row"><label for="fixedAcb">Fixed ACB admission</label><input id="fixedAcb" type="number" value="0.03" min="0.005" max="1" step="0.005"></div>
+   <div class="row"><label for="fixedBarring">Fixed barring (RAOs)</label><input id="fixedBarring" type="number" value="2" min="1" max="50"></div>
+   <div class="row"><label for="fixedBackoff">Fixed retry backoff (RAOs)</label><input id="fixedBackoff" type="number" value="12" min="1" max="50"></div>
+   <div class="row"><label for="ruleHigh">Rule high collision threshold</label><input id="ruleHigh" type="number" value="0.45" min="0.05" max="0.95" step="0.05"></div>
+   <div class="row"><label for="ruleLow">Rule recovery threshold</label><input id="ruleLow" type="number" value="0.18" min="0" max="0.8" step="0.05"></div>
+   <div class="row"><label for="trainEpisodes">PPO training episodes</label><input id="trainEpisodes" type="number" value="50" min="10" max="200" step="10"></div>
+   <div class="row"><label for="gamma">PPO gamma</label><input id="gamma" type="number" value="0.97" min="0.5" max="0.999" step="0.01"></div>
+   <div class="row"><label for="clip">PPO clip epsilon</label><input id="clip" type="number" value="0.2" min="0.05" max="0.5" step="0.05"></div>
+   <div class="row"><label for="lr">PPO learning rate</label><input id="lr" type="number" value="0.01" min="0.001" max="0.1" step="0.001"></div>
+  </details>
+  <div id="status" class="status">Ready. No evaluation has been run.</div>
+ </aside>
+ <section>
+  <div class="panel notice"><strong>Scope:</strong> Only mIoT random access is disturbed. Scheduled eMBB/URLLC/mIoT PRBs are not modeled or reallocated. A preamble used by one admitted device succeeds; a preamble selected by two or more devices collides. Failed devices back off and retry until success or retry exhaustion.</div>
+  <div id="resultPanel" class="panel" style="margin-top:14px" tabindex="-1">
+   <h2>Held-Out Matched Results</h2>
+   <div class="cards">
+    <div class="card"><div class="small">Storm arrivals</div><div id="kArrivals" class="v">—</div></div>
+    <div class="card"><div class="small">Available preambles</div><div id="kPreambles" class="v">—</div></div>
+    <div class="card"><div class="small">PPO training episodes</div><div id="kEpisodes" class="v">—</div></div>
+    <div class="card"><div class="small">Matched evaluation seed</div><div id="kSeed" class="v">—</div></div>
+   </div>
+   <div class="table-wrap"><table><thead><tr><th>Controller</th><th>Success %</th><th>Failures</th><th>Collision %</th><th>Retries</th><th>Mean delay ms</th><th>P95 delay ms</th><th>Peak backlog</th><th>Clearance RAO</th></tr></thead><tbody id="resultBody"><tr><td colspan="9" style="text-align:center">Run the matched evaluation to populate results.</td></tr></tbody></table></div>
+   <div id="decision" class="status decision">PPO acceptance has not been evaluated.</div>
+   <h3>Backlog by RAO</h3><canvas id="chart" width="1000" height="300"></canvas>
+   <div class="legend"><span><i class="dot" style="background:#a8b2bf"></i>No control</span><span><i class="dot" style="background:#ffae57"></i>Fixed ACB</span><span><i class="dot" style="background:#45a3ff"></i>Adaptive rule</span><span><i class="dot" style="background:#45d19b"></i>PPO</span></div>
+  </div>
+  <div class="panel" style="margin-top:14px"><h2>Trace and Assumptions</h2><div id="log" class="log">No trace available.</div></div>
+ </section>
+</div>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id), clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const ACTIONS=[
+ {n:"hold",set:null},{n:"emergency throttle",set:[.01,1,18]},
+ {n:"strong throttle",set:[.02,1,16]},{n:"heavy control",set:[.05,2,14]},
+ {n:"moderate control",set:[.10,3,12]},{n:"light control",set:[.20,4,10]},
+ {n:"limited open",set:[.40,4,8]},{n:"mostly open",set:[.70,3,5]},
+ {n:"fully open",set:[1,1,2]}
+];
+const COLORS={none:"#a8b2bf",fixed:"#ffae57",rule:"#45a3ff",ppo:"#45d19b"};
+let trained=null,lastResults=null,lastCfg=null;
+function hash01(seed,a,b,c){let x=(seed^Math.imul(a+1,0x9e3779b1)^Math.imul(b+7,0x85ebca6b)^Math.imul(c+13,0xc2b2ae35))>>>0;x^=x>>>16;x=Math.imul(x,0x7feb352d);x^=x>>>15;x=Math.imul(x,0x846ca68b);x^=x>>>16;return (x>>>0)/4294967296}
+function rng(seed){let s=seed>>>0;return()=>{s=(Math.imul(1664525,s)+1013904223)>>>0;return s/4294967296}}
+function poisson(lambda,r){if(lambda<=0)return 0;if(lambda>30){let z=Math.sqrt(-2*Math.log(Math.max(r(),1e-9)))*Math.cos(2*Math.PI*r());return Math.max(0,Math.round(lambda+Math.sqrt(lambda)*z))}let l=Math.exp(-lambda),p=1,k=0;do{k++;p*=r()}while(p>l);return k-1}
+function cfg(){
+ let profile=$("profile").value,devices=+$('stormDevices').value,duration=+$('duration').value;
+ if(profile!=="custom"){const p={moderate:[1200,20],severe:[3000,10],extreme:[7000,5]}[profile];devices=p[0];duration=p[1];$('stormDevices').value=devices;$('duration').value=duration}
+ return {profile,devices,start:+$('startRao').value,duration,horizon:+$('horizon').value,seed:+$('evalSeed').value,preambles:+$('preambles').value,raosPerSec:+$('raosPerSec').value,maxAttempts:+$('maxAttempts').value,background:+$('background').value,fixedAcb:+$('fixedAcb').value,fixedBarring:+$('fixedBarring').value,fixedBackoff:+$('fixedBackoff').value,ruleHigh:+$('ruleHigh').value,ruleLow:+$('ruleLow').value,episodes:+$('trainEpisodes').value,gamma:+$('gamma').value,clip:+$('clip').value,lr:+$('lr').value}
+}
+function validate(c){if(c.start+c.duration>=c.horizon-5)throw Error("Storm must end at least five RAOs before the evaluation horizon.");if(c.ruleLow>=c.ruleHigh)throw Error("Rule recovery threshold must be lower than its high collision threshold.");if(c.devices>50000)throw Error("Device limit exceeded.")}
+function stormWeights(c){let w=[];for(let i=0;i<c.duration;i++){let x=(i+.5)/c.duration;w.push(c.profile==="moderate"?1:Math.pow(x,2)*Math.pow(1-x,c.profile==="extreme"?5:3))}let s=w.reduce((a,b)=>a+b,0);return w.map(x=>x/s)}
+function arrivals(c,seed){let schedule=Array(c.horizon).fill(0),r=rng(seed),w=stormWeights(c),remaining=c.devices;for(let i=0;i<c.duration;i++){let n=i===c.duration-1?remaining:Math.min(remaining,Math.round(c.devices*w[i]));schedule[c.start+i]+=n;remaining-=n}for(let t=0;t<c.horizon;t++)schedule[t]+=poisson(c.background,r);return schedule}
+function controls(type,c){if(type==="none")return{p:1,b:1,w:2};if(type==="fixed")return{p:c.fixedAcb,b:c.fixedBarring,w:c.fixedBackoff};return{p:1,b:1,w:2}}
+function stateVec(ctx,c){return[clamp(ctx.backlog/(c.devices*.7+1),0,2),clamp(ctx.newN/(c.preambles*5),0,2),ctx.lastCollision,ctx.lastSuccess,clamp(ctx.failures/(c.devices+1),0,1),clamp(ctx.meanDelay/c.horizon,0,1),ctx.ctrl.p,ctx.ctrl.w/30]}
+function ruleStep(ctrl,ctx,c){
+ const target=clamp(.55*c.preambles/Math.max(1,ctx.backlog),.005,1);
+ ctrl.p=target;
+ if(ctx.lastCollision>c.ruleHigh){ctrl.b=clamp(ctrl.b+3,1,40);ctrl.w=clamp(ctrl.w+3,1,40)}
+ else if(ctx.lastCollision<c.ruleLow){ctrl.b=clamp(ctrl.b-1,1,40);ctrl.w=clamp(ctrl.w-1,1,40)}
+}
+function softmax(z){let m=Math.max(...z),e=z.map(x=>Math.exp(clamp(x-m,-30,30))),s=e.reduce((a,b)=>a+b,0);return e.map(x=>x/s)}
+function makeNet(r){let W=Array.from({length:ACTIONS.length},()=>Array.from({length:8},()=>(r()-.5)*.18)),b=Array(ACTIONS.length).fill(0),v=Array.from({length:8},()=>(r()-.5)*.1);return{W,b,v,vb:0}}
+function policy(net,s){return softmax(net.W.map((row,i)=>row.reduce((a,w,j)=>a+w*s[j],net.b[i])))}
+function value(net,s){return net.v.reduce((a,w,i)=>a+w*s[i],net.vb)}
+function choose(probs,r){let u=r(),s=0;for(let i=0;i<probs.length;i++){s+=probs[i];if(u<=s)return i}return probs.length-1}
+function applyAction(ctrl,a){let s=ACTIONS[a].set;if(s){ctrl.p=s[0];ctrl.b=s[1];ctrl.w=s[2]}}
+function percentile(a,p){if(!a.length)return 0;let x=[...a].sort((q,w)=>q-w),i=Math.min(x.length-1,Math.ceil(p*x.length)-1);return x[i]}
+function simulate(type,c,seed,net,training=false,actionRnd=null){
+ let schedule=arrivals(c,seed),ctrl=controls(type,c),devices=[],nextId=0,failures=0,retries=0,successes=0,collisionTx=0,admittedTx=0,delays=[],trace=[],trajectory=[],lastCollision=0,lastSuccess=1,clearance=null;
+ let prng=actionRnd||rng(seed^0x51f15e);
+ for(let t=0;t<c.horizon;t++){
+  let newN=schedule[t];for(let j=0;j<newN;j++)devices.push({id:nextId++,born:t,next:t,attempts:0,done:false});
+  let active=devices.filter(d=>!d.done),ctx={backlog:active.length,newN,lastCollision,lastSuccess,failures,meanDelay:delays.length?delays.reduce((a,b)=>a+b,0)/delays.length:0,ctrl};
+  let action=0,oldProb=1;
+  if(type==="rule")ruleStep(ctrl,ctx,c);
+  if(type==="ppo"){let st=stateVec(ctx,c),probs=policy(net,st);action=training?choose(probs,prng):probs.indexOf(Math.max(...probs));oldProb=probs[action];applyAction(ctrl,action);trajectory.push({s:st,a:action,oldProb,reward:0})}
+  let due=active.filter(d=>d.next<=t),admitted=[];
+  for(let d of due){let gate=hash01(seed,d.id,t,11);if(gate<=ctrl.p)admitted.push(d);else d.next=t+1+Math.floor(hash01(seed,d.id,t,12)*ctrl.b)}
+  let bins=Array.from({length:c.preambles},()=>[]);for(let d of admitted){let p=Math.floor(hash01(seed,d.id,d.attempts,13)*c.preambles);bins[p].push(d);d.attempts++;admittedTx++}
+  let collided=0,stepSuccess=0,stepFail=0;
+  for(let bin of bins){if(bin.length===1){let d=bin[0];d.done=true;successes++;stepSuccess++;delays.push(t-d.born+1)}else if(bin.length>1){collided+=bin.length;collisionTx+=bin.length;for(let d of bin){retries++;if(d.attempts>=c.maxAttempts){d.done=true;failures++;stepFail++}else d.next=t+1+Math.floor(hash01(seed,d.id,d.attempts,14)*ctrl.w)}}}
+  lastCollision=admitted.length?collided/admitted.length:0;lastSuccess=admitted.length?stepSuccess/admitted.length:1;
+  let backlog=devices.reduce((n,d)=>n+(!d.done?1:0),0);if(t>=c.start+c.duration&&backlog===0&&clearance===null)clearance=t;
+  let reward=stepSuccess/Math.max(1,c.preambles)-1.2*lastCollision-2.5*stepFail/Math.max(1,newN+due.length)-1.5*backlog/Math.max(1,c.devices)-.03*(ctrl.b+ctrl.w)/80;
+  if(type==="ppo")trajectory[trajectory.length-1].reward=reward;
+  trace.push({t,backlog,collision:lastCollision,success:stepSuccess,fail:stepFail,p:ctrl.p,b:ctrl.b,w:ctrl.w,action});
+ }
+ let unfinished=devices.filter(d=>!d.done).length;failures+=unfinished;
+ return {type,total:devices.length,successes,failures,retries,collisionRate:admittedTx?collisionTx/admittedTx:0,successRate:devices.length?successes/devices.length:0,meanDelay:delays.length?delays.reduce((a,b)=>a+b,0)/delays.length:0,p95:percentile(delays,.95),peak:Math.max(...trace.map(x=>x.backlog)),clearance:clearance===null?c.horizon:clearance,trace,trajectory};
+}
+function train(c){
+ let r=rng(99173),net=makeNet(r),returns=[];
+ for(let ep=0;ep<c.episodes;ep++){
+  let tc={...c,profile:["moderate","severe","extreme"][ep%3],devices:Math.round(c.devices*(.55+.8*r())),start:10+Math.floor(r()*25),duration:5+Math.floor(r()*18),seed:10000+ep*7919};tc.horizon=Math.max(c.horizon,tc.start+tc.duration+60);
+  let sim=simulate("ppo",tc,tc.seed,net,true,r),tr=sim.trajectory,G=0;returns=Array(tr.length);
+  for(let i=tr.length-1;i>=0;i--){G=tr[i].reward+c.gamma*G;returns[i]=G}
+  let vals=tr.map(x=>value(net,x.s)),adv=returns.map((x,i)=>x-vals[i]),m=adv.reduce((a,b)=>a+b,0)/adv.length,sd=Math.sqrt(adv.reduce((a,b)=>a+(b-m)*(b-m),0)/adv.length+1e-8);adv=adv.map(x=>(x-m)/sd);
+  for(let epoch=0;epoch<3;epoch++)for(let i=0;i<tr.length;i++){
+   let x=tr[i],probs=policy(net,x.s),ratio=probs[x.a]/Math.max(x.oldProb,1e-9),use=(adv[i]>=0?Math.min(ratio,1+c.clip):Math.max(ratio,1-c.clip))*adv[i],coef=clamp(use,-3,3);
+   for(let a=0;a<ACTIONS.length;a++){let g=coef*((a===x.a?1:0)-probs[a]);net.b[a]+=c.lr*g;for(let j=0;j<8;j++)net.W[a][j]+=c.lr*g*x.s[j]}
+   let err=clamp(returns[i]-value(net,x.s),-5,5);net.vb+=c.lr*.6*err;for(let j=0;j<8;j++)net.v[j]+=c.lr*.6*err*x.s[j]
+  }
+ }
+ return net;
+}
+function fmt(n,d=1){return Number(n).toFixed(d)}
+function render(results,c){
+ const labels={none:"No control",fixed:"Fixed ACB",rule:"Adaptive rule",ppo:"PPO"};let bestDet=results.filter(x=>x.type!=="ppo").sort((a,b)=>a.failures-b.failures||a.p95-b.p95)[0];
+ $('kArrivals').textContent=c.devices.toLocaleString();$('kPreambles').textContent=c.preambles;$('kEpisodes').textContent=c.episodes;$('kSeed').textContent=c.seed;
+ $('resultBody').innerHTML=results.map(x=>`<tr><td>${labels[x.type]}</td><td>${fmt(100*x.successRate,2)}</td><td class="${x.failures===Math.min(...results.map(z=>z.failures))?'best':''}">${x.failures}</td><td>${fmt(100*x.collisionRate,2)}</td><td>${x.retries}</td><td>${fmt(1000*x.meanDelay/c.raosPerSec,1)}</td><td>${fmt(1000*x.p95/c.raosPerSec,1)}</td><td>${x.peak}</td><td>${x.clearance}</td></tr>`).join('');
+ let p=results.find(x=>x.type==="ppo"),nonDegrade=p.failures<=bestDet.failures&&p.p95<=bestDet.p95*1.05&&p.successRate+1e-9>=bestDet.successRate-.002,improve=p.failures<=bestDet.failures*.95||p.collisionRate<=bestDet.collisionRate*.95||p.p95<=bestDet.p95*.95,ok=nonDegrade&&improve;
+ $('decision').className='status decision '+(ok?'pass':'fail');$('decision').textContent=ok?`SUPPORTED FOR THIS HELD-OUT TEST: PPO is non-degrading versus the best deterministic controller (${labels[bestDet.type]}) and improves at least one predefined PRACH outcome by 5%.`:`NOT SUPPORTED FOR THIS HELD-OUT TEST: PPO did not jointly satisfy failure, success, P95-delay, and 5% material-improvement conditions versus ${labels[bestDet.type]}.`;
+ draw(results,c);$('log').textContent=`[V17 PRACH-ONLY EVALUATION]\nScope: synchronized mIoT contention; no scheduled PRB allocation\nTraffic seed: ${c.seed}; PPO initialization seed: 99173\nStorm: ${c.profile}, ${c.devices} devices, RAOs ${c.start}-${c.start+c.duration-1}\nResources: ${c.preambles} contention preambles/RAO, ${c.raosPerSec} RAOs/s\nUE behavior: ACB gate, uniform preamble selection, collision, randomized backoff, maximum ${c.maxAttempts} attempts\nBaselines: no control; fixed ACB; adaptive threshold rule\nPPO actions: admission, barring and retry-backoff adjustments\nAcceptance: no more failures, no >5% P95-delay degradation, no material success degradation, plus >=5% improvement in failures, collision rate, or P95 delay\nResult: ${ok?'SUPPORTED FOR THIS TEST':'NOT SUPPORTED FOR THIS TEST'}\nCaveat: aggregate research simulator; not 3GPP conformance or field performance.`;
+ $('csvBtn').disabled=false;$('resultPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function draw(results,c){let cv=$('chart'),x=cv.getContext('2d'),W=cv.width,H=cv.height,L=48,R=12,T=12,B=30;x.clearRect(0,0,W,H);x.strokeStyle='#29445e';x.beginPath();x.moveTo(L,T);x.lineTo(L,H-B);x.lineTo(W-R,H-B);x.stroke();let ymax=Math.max(1,...results.flatMap(z=>z.trace.map(q=>q.backlog)));for(let z of results){x.strokeStyle=COLORS[z.type];x.lineWidth=2;x.beginPath();z.trace.forEach((q,i)=>{let px=L+i/(c.horizon-1)*(W-L-R),py=T+(1-q.backlog/ymax)*(H-T-B);i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke()}x.fillStyle='#9fb3c8';x.font='12px system-ui';x.fillText('0',24,H-B+4);x.fillText(String(ymax),8,T+5);x.fillText('RAO',W/2,H-7)}
+async function run(all=true){let c=cfg();try{validate(c)}catch(e){$('status').textContent=e.message;return}$('runBtn').disabled=true;$('trainBtn').disabled=true;$('status').textContent='Training PPO on non-evaluation storms…';await new Promise(r=>setTimeout(r,40));try{trained=train(c);$('status').textContent=`PPO training complete (${c.episodes} episodes).`;if(all){await new Promise(r=>setTimeout(r,20));$('status').textContent='Running four controllers on the identical held-out arrival schedule…';let results=['none','fixed','rule','ppo'].map(k=>simulate(k,c,c.seed,k==='ppo'?trained:null));lastResults=results;lastCfg=c;render(results,c);$('status').textContent='Matched PRACH evaluation complete.'}}catch(e){$('status').textContent='Evaluation halted: '+e.message;console.error(e)}finally{$('runBtn').disabled=false;$('trainBtn').disabled=false}}
+function csv(){if(!lastResults)return;let s='controller,total,successes,success_rate,failures,collision_rate,retries,mean_delay_ms,p95_delay_ms,peak_backlog,clearance_rao\n'+lastResults.map(x=>[x.type,x.total,x.successes,x.successRate,x.failures,x.collisionRate,x.retries,1000*x.meanDelay/lastCfg.raosPerSec,1000*x.p95/lastCfg.raosPerSec,x.peak,x.clearance].join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='RANsliceOpt_v17_PRACH_results.csv';a.click();URL.revokeObjectURL(a.href)}
+function reset(){location.reload()}
+$('runBtn').onclick=()=>run(true);$('trainBtn').onclick=()=>run(false);$('resetBtn').onclick=reset;$('csvBtn').onclick=csv;
+$('profile').onchange=()=>{if($('profile').value!=="custom")cfg()};
+if(new URLSearchParams(location.search).get('autorun')==='1')setTimeout(()=>run(true),0);
+</script>
+</body>
+</html>
