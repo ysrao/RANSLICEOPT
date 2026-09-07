@@ -47,3 +47,23 @@ efficiency, or composite reward degrades. A rejected candidate is labeled
 ## Multicell Configuration Artifact — v15.4
 
 The full root artifact now models a fixed 10-site cluster while retaining PPO training, rule-baseline evaluation, diagnostics, charts, and trace output. It accepts site-specific X/Y locations and active UE counts, derives non-overlapping service areas from the site layout, and represents mIoT/eMTC demand using registered-device density, access activity, and retry amplification. mIoT SLA selection uses best-effort, managed-target, or contractual-target profiles; managed values are engineering thresholds rather than universal carrier SLAs. eMBB capacity combines its primary FDD allocation with supplemental FDD and effective TDD downlink PRBs, while URLLC and mIoT/eMTC remain single-carrier.
+
+## v8 — Centralized PPO vs. Cooperative MARL Comparison
+
+[`RANsliceOpt_v8_PPO_vs_MARL_comparison.pdf`](RANsliceOpt_v8_PPO_vs_MARL_comparison.pdf)
+is a matched, seed-robust, single-cell slice-allocation study testing whether
+per-slice cooperative MARL beats a centralized PPO controller. Both
+controllers are built from the same PPO actor-critic implementation, trained
+under an identical protocol (260 episodes x 48 steps, 10 training seeds), and
+evaluated on 400 paired held-out cases (10 training seeds x 40 traffic
+windows).
+
+Result: a small aggregate reward advantage for MARL (+4.08%) that is **not
+statistically significant** (training-seed-clustered 95% CI
+`[-0.0069, +0.0625]`, crosses zero; MARL wins only 4/10 training seeds).
+Per-seed and mechanism analysis trace the aggregate gap to a
+training-reliability effect — MARL's smaller, decomposed per-slice
+subproblems converge on the same corner allocation every time, while
+centralized PPO reaches an equal-or-better solution most of the time but
+stalls in worse local optima on a minority of seeds — not to richer adaptive
+coordination.
