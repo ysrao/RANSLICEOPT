@@ -1,5 +1,31 @@
 # RANsliceOpt AI
 
+## Rendered HTML Artifacts (newest first)
+
+All browser-renderable pages in this repository, most recently updated on top.
+Links open the GitHub Pages rendered version.
+
+| Updated | Page |
+|---|---|
+| 2026-09-09 | [Soft Slice Capacity Simulator](https://ysrao.github.io/RANSLICEOPT/Soft_Slice_Capacity_Simulator.html) |
+| 2026-08-30 | [RANsliceOpt AI v17 — PRACH](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_v17_PRACH.html) |
+| 2026-08-30 | [RANsliceOpt AI v16 — experimental](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_v16_experimental.html) |
+| 2026-08-29 | [Platform v15.5.3](https://ysrao.github.io/RANSLICEOPT/platform/versions/v15.5.3/index.html) |
+| 2026-08-29 | [Platform v15.5.2](https://ysrao.github.io/RANSLICEOPT/platform/versions/v15.5.2/index.html) |
+| 2026-08-29 | [Platform web](https://ysrao.github.io/RANSLICEOPT/platform/web/index.html) |
+| 2026-08-29 | [Site root (index)](https://ysrao.github.io/RANSLICEOPT/index.html) |
+| 2026-08-29 | [README (rendered)](https://ysrao.github.io/RANSLICEOPT/README.html) |
+| 2026-08-27 | [PPO results](https://ysrao.github.io/RANSLICEOPT/ppo-results.html) |
+| 2026-08-24 | [App (index)](https://ysrao.github.io/RANSLICEOPT/app/index.html) |
+| 2026-08-24 | [App artifact](https://ysrao.github.io/RANSLICEOPT/app/artifact.html) |
+| 2026-08-23 | [RANsliceOpt AI PPO/MDP v15.2](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v15_2.html) |
+| 2026-08-23 | [RANsliceOpt AI PPO/MDP v15.1 FINAL](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v15.1_FINAL.html) |
+| 2026-08-21 | [RANsliceOpt AI PPO/MDP v15 FINAL](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v15_FINAL.html) |
+| 2026-08-20 | [RANsliceOpt AI PPO/MDP v15](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v15.html) |
+| 2026-08-20 | [RANsliceOpt (old)](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_Old.html) |
+| 2026-08-20 | [RANsliceOpt AI PPO/MDP v14](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v14.html) |
+| 2026-08-20 | [RANOPTslice](https://ysrao.github.io/RANSLICEOPT/RANOPTslice.html) |
+
 ## Live Browser Artifact
 
 [▶ Open RANsliceOpt AI v15.4 — SLA-Safe Multicell PPO Artifact](https://ysrao.github.io/RANSLICEOPT/)
