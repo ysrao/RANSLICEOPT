@@ -1,41 +1,75 @@
 # RANsliceOpt AI
 
-## Rendered HTML Artifacts (newest first)
+Soft RAN slicing optimisation using RL (PPO) over a multi-step MDP: browser artifacts, a Python decision platform, papers, specs and decks.
 
-All browser-renderable pages in this repository, most recently updated on top.
-Links open the GitHub Pages rendered version.
+**Live artifact (v15.4):** [▶ ysrao.github.io/RANSLICEOPT](https://ysrao.github.io/RANSLICEOPT/)
 
-| Updated | Page |
+## Repository layout
+
+| Folder | Contents |
 |---|---|
-| 2026-09-09 | [Soft Slice Capacity Simulator](https://ysrao.github.io/RANSLICEOPT/Soft_Slice_Capacity_Simulator.html) |
-| 2026-08-30 | [RANsliceOpt AI v17 — PRACH](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_v17_PRACH.html) |
-| 2026-08-30 | [RANsliceOpt AI v16 — experimental](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_v16_experimental.html) |
-| 2026-08-29 | [Platform v15.5.3](https://ysrao.github.io/RANSLICEOPT/platform/versions/v15.5.3/index.html) |
-| 2026-08-29 | [Platform v15.5.2](https://ysrao.github.io/RANSLICEOPT/platform/versions/v15.5.2/index.html) |
-| 2026-08-29 | [Platform web](https://ysrao.github.io/RANSLICEOPT/platform/web/index.html) |
-| 2026-08-29 | [Site root (index)](https://ysrao.github.io/RANSLICEOPT/index.html) |
-| 2026-08-29 | [README (rendered)](https://ysrao.github.io/RANSLICEOPT/README.html) |
-| 2026-08-27 | [PPO results](https://ysrao.github.io/RANSLICEOPT/ppo-results.html) |
-| 2026-08-24 | [App (index)](https://ysrao.github.io/RANSLICEOPT/app/index.html) |
-| 2026-08-24 | [App artifact](https://ysrao.github.io/RANSLICEOPT/app/artifact.html) |
-| 2026-08-23 | [RANsliceOpt AI PPO/MDP v15.2](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v15_2.html) |
-| 2026-08-23 | [RANsliceOpt AI PPO/MDP v15.1 FINAL](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v15.1_FINAL.html) |
-| 2026-08-21 | [RANsliceOpt AI PPO/MDP v15 FINAL](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v15_FINAL.html) |
-| 2026-08-20 | [RANsliceOpt AI PPO/MDP v15](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v15.html) |
-| 2026-08-20 | [RANsliceOpt (old)](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_Old.html) |
-| 2026-08-20 | [RANsliceOpt AI PPO/MDP v14](https://ysrao.github.io/RANSLICEOPT/RANsliceOpt_AI_PPO_MDP_v14.html) |
-| 2026-08-20 | [RANOPTslice](https://ysrao.github.io/RANSLICEOPT/RANOPTslice.html) |
+| `index.html` | Live browser artifact, v15.4 SLA-safe multicell PPO (GitHub Pages root) |
+| `artifacts/` | Current standalone browser artifacts: v17 PRACH, v16 experimental, Soft Slice Capacity Simulator |
+| `platform/` | Python decision-platform MVP (engine, server, tests, web UI, versions); data in `platform/data/` |
+| `papers/` | Papers, each in its own folder with source and PDF |
+| `specs/` | PPO/MDP specification (v3, IEEE-synchronised) |
+| `decks/` | RANOpt AI / DRL RAN planning slide decks and Q&A prep |
+| `archive/` | Superseded versions, templates and release bundles, kept for reference |
 
-## Live Browser Artifact
+The `.html` files left at the top level (other than `index.html`) are redirect stubs. They keep old GitHub Pages links working and forward to the new locations.
 
-[▶ Open RANsliceOpt AI v15.4 — SLA-Safe Multicell PPO Artifact](https://ysrao.github.io/RANSLICEOPT/)
+## Browser artifacts
+
+| Page | Location |
+|---|---|
+| [RANsliceOpt AI v15.4 — live](https://ysrao.github.io/RANSLICEOPT/) | `index.html` |
+| [v17 — PRACH overload control (PPO vs DQN)](https://ysrao.github.io/RANSLICEOPT/artifacts/v17-prach/RANsliceOpt_AI_v17_PRACH.html) | `artifacts/v17-prach/` |
+| [v16 — experimental multicell disturbance](https://ysrao.github.io/RANSLICEOPT/artifacts/v16-experimental/RANsliceOpt_AI_v16_experimental.html) | `artifacts/v16-experimental/` |
+| [6G NR Soft Slice Capacity Simulator](https://ysrao.github.io/RANSLICEOPT/artifacts/soft-slice-capacity/Soft_Slice_Capacity_Simulator.html) | `artifacts/soft-slice-capacity/` |
+| [Platform web v15.5.3](https://ysrao.github.io/RANSLICEOPT/platform/web/index.html) · [v15.5.2](https://ysrao.github.io/RANSLICEOPT/platform/versions/v15.5.2/index.html) | `platform/` |
+
+## Papers
+
+| Paper | Folder |
+|---|---|
+| PPO versus DQN for mIoT Random-Access Overload (IEEE, 4-page) | `papers/v17-ppo-dqn-ieee/` |
+| RANsliceOpt Traceable AI (IEEE) | `papers/traceable-ai-ieee/` |
+| SLA-Constrained Soft RAN Slicing using PPO over a Multi-Step MDP (Quarto/Typst) | `papers/sla-constrained-ppo-typst/` |
+| [PPO-Based versus Rule-Based 6G RAN Slice Provisioning](https://ysrao.github.io/RANSLICEOPT/papers/ppo-results/ppo-results.html) | `papers/ppo-results/` |
+| RANsliceOpt v15.4 single-cell implementation | `papers/single-cell-v15.4/` |
+| Working drafts (technical paper, network slicing paper, PPO contextual paper, RAN slice provisioning) | `papers/drafts/` |
+
+## Running the platform
+
+```sh
+cd platform
+python3 server.py          # then open http://127.0.0.1:8765
+python3 -m unittest -v test_engine.py
+```
+
+See [`platform/README.md`](platform/README.md) for details.
+
+## Archive
+
+`archive/` holds everything superseded. Nothing was deleted in the reorganisation.
+
+- `archive/artifacts/`: PPO/MDP v14, v15, v15 FINAL, v15.1 FINAL, v15.2, the old RANOpt page, and the v15.3 multicell app
+- `archive/specs/`, `archive/papers/`, `archive/decks/`: earlier versions (spec v1, single-cell v1 PDF, deck v1)
+- `archive/bundles/`: release zips for v16 and v17. Each zip contains its own README
+- `archive/quarto-template/`, `archive/old-readme/`, `archive/orphaned/`: Quarto starter template, old rendered README, and unused build output or duplicates
+
+The former sister repository `ysrao/RANSOFTSLIcEOPT` contained only the Soft Slice Capacity Simulator. That file is identical to `artifacts/soft-slice-capacity/Soft_Slice_Capacity_Simulator.html`, so RANSLICEOPT is now the single home for this work.
+
+---
+
+## Live Browser Artifact — v15.4
 
 RANsliceOpt AI — Soft RAN Slicing optimization using RL PPO with Multi-Step MDP.
 
 **Current browser version: v15.4**
 
 An experimental v16 companion artefact is also included locally as
-[`RANsliceOpt_AI_v16_experimental.html`](RANsliceOpt_AI_v16_experimental.html).
+[`artifacts/v16-experimental/RANsliceOpt_AI_v16_experimental.html`](artifacts/v16-experimental/RANsliceOpt_AI_v16_experimental.html).
 Its default held-out event is a five-step, +400% mIoT/eMTC **PRACH access-storm
 abstraction**. It increases aggregate access-attempt load during matched PPO and
 rule evaluation; it does not simulate individual preambles, collisions, backoff,
@@ -43,7 +77,7 @@ retransmission timers, or the complete 3GPP random-access procedure.
 
 ## V17 PRACH Overload-Control Research Artifact
 
-[`RANsliceOpt_AI_v17_PRACH.html`](RANsliceOpt_AI_v17_PRACH.html) is a separate,
+[`artifacts/v17-prach/RANsliceOpt_AI_v17_PRACH.html`](artifacts/v17-prach/RANsliceOpt_AI_v17_PRACH.html) is a separate,
 PRACH-only mIoT research simulation. It compares no control, fixed ACB, an
 adaptive deterministic gNB rule, DQN, and PPO under an identical
 held-out synchronized arrival schedule. The model explicitly represents

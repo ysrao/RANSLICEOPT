@@ -13,7 +13,7 @@ from typing import Dict, Iterable, List, Tuple
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "synthetic_profiles" / "all_profiles.csv"
+DATA = Path(__file__).resolve().parent / "data" / "synthetic_profiles" / "all_profiles.csv"
 
 SLICE_NAMES = ("eMBB", "URLLC", "IoT")
 TEMPLATES = np.array([

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>RANsliceOpt AI v15</title>
+<style>
+html,body{margin:0;height:100%;background:#07111f}
+iframe{border:0;width:100%;height:100vh;display:block}
+</style>
+</head>
+<body>
+<iframe id="app" src="RANsliceOpt_AI_PPO_MDP_v14.html" title="RANsliceOpt AI v15"></iframe>
+<script>
+const frame=document.getElementById('app');
+frame.addEventListener('load',()=>{
+ const w=frame.contentWindow,d=frame.contentDocument;
+ const h=d.querySelector('h1');
+ if(h) h.textContent='RANsliceOpt AI v15 — Soft RAN Slicing with PPO + Multi-Step MDP';
+
+ const aside=d.querySelector('aside.panel');
+ if(aside){
+   const box=d.createElement('div');
+   box.className='status';
+   box.innerHTML='<strong>MDP Steps per Run:</strong> <span id="v15StepValue">'+d.getElementById('steps').value+
+   '</span><br><span class="small">Run PPO-MDP uses this many evaluation transitions. Each Single Step click advances one additional MDP transition and retains the learned actor/critic state until Reset.</span>';
+   aside.appendChild(box);
+   d.getElementById('steps').addEventListener('input',()=>d.getElementById('v15StepValue').textContent=d.getElementById('steps').value);
+ }
+
+ const hist=d.getElementById('chart')?.parentElement;
+ if(hist){
+   const rb=d.createElement('div'); rb.className='status';
+   rb.innerHTML='<strong>Reward breakdown:</strong> Positive KPI Score − URLLC penalty − eMBB penalty − eMTC penalty = Final Reward<br><span id="rewardBreakdownValues" class="small">Run or step the model to display components.</span>';
+   hist.appendChild(rb);
+ }
+
+ function breakdown(pt){
+   const cfg=w.snapshotConfig();
+   const pos=0.40*w.clamp(pt.emb,0,1)+0.25*pt.fair+0.15*w.clamp(pt.iot,0,1)+0.20*w.clamp(pt.eff,0,1);
+   const pu=pt.lat>cfg.latTarget?0.55*Math.min(2,(pt.lat-cfg.latTarget)/cfg.latTarget):0;
+   const pe=pt.emb<cfg.embMin?0.30*(cfg.embMin-pt.emb):0;
+   const pi=pt.iot<cfg.iotMin?0.25*(cfg.iotMin-pt.iot):0;
+   const el=d.getElementById('rewardBreakdownValues');
+   if(el) el.textContent=pos.toFixed(3)+' − '+pu.toFixed(3)+' − '+pe.toFixed(3)+' − '+pi.toFixed(3)+' = '+pt.r.toFixed(3);
+ }
+ const oldRender=w.renderPoint;
+ w.renderPoint=function(pt){oldRender(pt);breakdown(pt);};
+
+ function axes(ctx,W,H,ymin,ymax,yLabel,nSteps){
+   const L=55,R=10,T=12,B=32,pw=W-L-R,ph=H-T-B;
+   ctx.font='11px system-ui';ctx.fillStyle='#9fb3c8';ctx.strokeStyle='#24415f';ctx.lineWidth=1;
+   for(let i=0;i<=4;i++){
+     const y=T+ph*i/4,v=ymax-(ymax-ymin)*i/4;
+     ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(W-R,y);ctx.stroke();
+     ctx.fillText(v.toFixed(ymax<=1.5?2:1),4,y+4);
+   }
+   const xmax=Math.max(1,nSteps);
+   for(let i=0;i<=4;i++){
+     const x=L+pw*i/4,v=Math.round(xmax*i/4);
+     ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,H-B);ctx.stroke();
+     ctx.fillText(String(v),x-7,H-11);
+   }
+   ctx.fillText('MDP Step',W/2-24,H-3);
+   ctx.save();ctx.translate(13,H/2+30);ctx.rotate(-Math.PI/2);ctx.fillText(yLabel,0,0);ctx.restore();
+   return {L,R,T,B,pw,ph};
+ }
+
+ w.drawHistory=function(){
+   const c=d.getElementById('chart'),ctx=c.getContext('2d'),W=c.width,H=c.height,arr=w.kpiHistory;
+   ctx.clearRect(0,0,W,H);ctx.fillStyle='#091525';ctx.fillRect(0,0,W,H);
+   const ymin=-0.5,ymax=1.0,g=axes(ctx,W,H,ymin,ymax,'Reward (normalized)',arr.length);
+   if(!arr.length)return;
+   ctx.strokeStyle='#4aa3ff';ctx.lineWidth=2;ctx.beginPath();
+   arr.forEach((p,i)=>{
+     const x=g.L+(arr.length===1?g.pw/2:i*g.pw/Math.max(1,arr.length-1));
+     const y=g.T+g.ph*(ymax-w.clamp(p.r,ymin,ymax))/(ymax-ymin);
+     i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+   });ctx.stroke();
+ };
+
+ w.drawCompare=function(id,key,ymin,ymax){
+   const c=d.getElementById(id),ctx=c.getContext('2d'),W=c.width,H=c.height,b=w.comparison.baseline,p=w.comparison.ppo;
+   ctx.clearRect(0,0,W,H);ctx.fillStyle='#091525';ctx.fillRect(0,0,W,H);
+   const label=key==='emb'?'eMBB throughput (normalized)':key==='lat'?'URLLC latency (ms)':'eMTC service ratio (0–1)';
+   const g=axes(ctx,W,H,ymin,ymax,label,Math.max(b.length,p.length));
+   function plot(arr,color){
+     if(!arr.length)return;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();
+     arr.forEach((q,i)=>{
+       const x=g.L+i*g.pw/Math.max(1,arr.length-1);
+       const y=g.T+g.ph*(ymax-w.clamp(q[key],ymin,ymax))/(ymax-ymin);
+       i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+     });ctx.stroke();
+   }
+   plot(b,'#ffb020');plot(p,'#4aa3ff');
+ };
+ w.drawBaselineCurve=function(id,key,ymin,ymax){w.drawCompare(id,key,ymin,ymax)};
+
+ const status=d.getElementById('status');
+ if(status) status.textContent='v15 ready. Graph axes are labeled; repeated Single Step clicks continue the same MDP learning sequence until Reset.';
+ w.drawHistory();
+});
+</script>
+</body>
+</html>

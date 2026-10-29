@@ -1,0 +1,298 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>6G NR Soft Slice Capacity Simulator</title>
+  <style>
+    body { margin: 0; padding: 18px; font-family: Arial, Helvetica, sans-serif; background: #f4f6f8; color: #111827; }
+    h1 { font-size: 22px; margin: 0 0 8px 0; }
+    h2 { font-size: 17px; margin: 18px 0 8px 0; }
+    .box { background: #ffffff; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; margin: 12px 0; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)); gap: 10px; }
+    label { display: block; font-weight: bold; font-size: 14px; }
+    input, select { box-sizing: border-box; width: 100%; margin-top: 5px; padding: 9px; font-size: 16px; border: 1px solid #9ca3af; border-radius: 6px; background: #ffffff; color: #111827; }
+    button { margin-top: 10px; padding: 11px 18px; font-size: 16px; font-weight: bold; border: 0; border-radius: 6px; background: #2563eb; color: #ffffff; }
+    .status { display: inline-block; margin-left: 10px; padding: 6px 10px; border-radius: 999px; background: #e5e7eb; font-weight: bold; }
+    .results { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+    .metric { background: #ffffff; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; }
+    .metric .label { color: #4b5563; font-size: 13px; }
+    .metric .value { font-size: 22px; font-weight: bold; margin-top: 4px; }
+    .bad { color: #b91c1c; }
+    table { width: 100%; border-collapse: collapse; background: #ffffff; margin-top: 10px; }
+    th, td { border-bottom: 1px solid #d1d5db; padding: 8px; text-align: right; font-size: 14px; }
+    th:first-child, td:first-child { text-align: left; }
+    .note { color: #374151; font-size: 14px; line-height: 1.45; }
+    @media (max-width: 760px) { .grid, .results { grid-template-columns: 1fr; } body { padding: 12px; } }
+  </style>
+</head>
+<body onload="calculateSliceSim()">
+  <h1>6G NR Soft Slice Capacity Simulator</h1>
+  <div class="note">Enter the reserved 50 MHz split and traffic assumptions, then press Calculate. In soft slicing, unused MHz can be borrowed by overloaded slices.</div>
+
+  <div class="box">
+    <h2>Spectrum Inputs</h2>
+    <div class="grid">
+      <label>eMBB bandwidth MHz <input id="embbBw" type="number" value="25" min="0" step="1"></label>
+      <label>URLLC bandwidth MHz <input id="urllcBw" type="number" value="15" min="0" step="1"></label>
+      <label>IoT bandwidth MHz <input id="iotBw" type="number" value="10" min="0" step="1"></label>
+    </div>
+    <div class="grid">
+      <label>Slicing mode
+        <select id="sliceMode">
+          <option value="soft" selected>Soft slicing: borrow unused PRBs</option>
+          <option value="hard">Hard slicing: no borrowing</option>
+        </select>
+      </label>
+      <label>eMBB offered traffic Mbps <input id="embbDemand" type="number" value="140" min="0" step="5"></label>
+      <label>Borrowing priority
+        <select id="borrowPriority">
+          <option value="sla" selected>URLLC first, then eMBB, then IoT</option>
+          <option value="proportional">Proportional to overload</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>Radio Conditions</h2>
+    <div class="grid">
+      <label>SINR condition
+        <select id="sinr">
+          <option value="1.22">Good SINR</option>
+          <option value="1.00" selected>Moderate SINR</option>
+          <option value="0.62">Cell edge SINR</option>
+        </select>
+      </label>
+      <label>MIMO / beamforming
+        <select id="mimo">
+          <option value="0.78">Basic 2x2 / low rank</option>
+          <option value="1.00" selected>4x4 effective</option>
+          <option value="1.34">Massive MIMO / high rank</option>
+        </select>
+      </label>
+      <label>URLLC latency SLA ms <input id="urllcSla" type="number" value="2" min="0.5" step="0.5"></label>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>IoT PRACH Access Inputs</h2>
+    <div class="grid">
+      <label>IoT devices <input id="iotDevices" type="number" value="2000" min="0" step="100"></label>
+      <label>Reports/device/min <input id="iotReports" type="number" value="1" min="0" step="0.1"></label>
+      <label>Payload bytes/report <input id="iotPayload" type="number" value="200" min="1" step="10"></label>
+    </div>
+    <div class="grid">
+      <label>Contention preambles <input id="preambles" type="number" value="54" min="1" step="1"></label>
+      <label>RACH occasions/sec <input id="rachOcc" type="number" value="10" min="1" step="1"></label>
+      <label>IoT demand kbps/device <input id="iotKbps" type="number" value="10" min="0.1" step="1"></label>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>URLLC Traffic Inputs</h2>
+    <div class="grid">
+      <label>URLLC sessions <input id="urllcSessions" type="number" value="60" min="0" step="10"></label>
+      <label>Packet bytes <input id="urllcPacket" type="number" value="160" min="1" step="10"></label>
+      <label>Packets/sec/session <input id="urllcRate" type="number" value="20" min="0" step="1"></label>
+    </div>
+  </div>
+
+  <button type="button" onclick="calculateSliceSim()">Calculate</button>
+  <span id="status" class="status">READY</span>
+
+  <div class="results">
+    <div class="metric"><div class="label">Total capacity</div><div id="totalCap" class="value">-</div></div>
+    <div class="metric"><div class="label">URLLC latency</div><div id="urllcLatency" class="value">-</div></div>
+    <div class="metric"><div class="label">IoT bottleneck</div><div id="iotBottleneck" class="value">-</div></div>
+    <div class="metric"><div class="label">Spectrum total</div><div id="spectrumTotal" class="value">-</div></div>
+    <div class="metric"><div class="label">Unused pool available</div><div id="borrowPool" class="value">-</div></div>
+    <div class="metric"><div class="label">Total borrowed</div><div id="totalBorrowed" class="value">-</div></div>
+    <div class="metric"><div class="label">Borrowed capacity gain</div><div id="borrowGain" class="value">-</div></div>
+    <div class="metric"><div class="label">Total overload</div><div id="totalOverload" class="value">-</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Slice</th><th>Reserved MHz</th><th>Needed MHz</th><th>Unused MHz</th><th>Final MHz</th><th>Borrowed MHz</th><th>Borrowed Mbps</th><th>Eff b/s/Hz</th><th>Capacity Mbps</th><th>Carried Mbps</th><th>Approx devices</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>eMBB</td><td id="embbBwOut">-</td><td id="embbNeedOut">-</td><td id="embbUnusedOut">-</td><td id="embbFinalBwOut">-</td><td id="embbBorrowOut">-</td><td id="embbBorrowCapOut">-</td><td id="embbEtaOut">-</td><td id="embbCapOut">-</td><td id="embbCarriedOut">-</td><td id="embbUsersOut">-</td></tr>
+      <tr><td>URLLC</td><td id="urllcBwOut">-</td><td id="urllcNeedOut">-</td><td id="urllcUnusedOut">-</td><td id="urllcFinalBwOut">-</td><td id="urllcBorrowOut">-</td><td id="urllcBorrowCapOut">-</td><td id="urllcEtaOut">-</td><td id="urllcCapOut">-</td><td id="urllcCarriedOut">-</td><td id="urllcUsersOut">-</td></tr>
+      <tr><td>IoT</td><td id="iotBwOut">-</td><td id="iotNeedOut">-</td><td id="iotUnusedOut">-</td><td id="iotFinalBwOut">-</td><td id="iotBorrowOut">-</td><td id="iotBorrowCapOut">-</td><td id="iotEtaOut">-</td><td id="iotCapOut">-</td><td id="iotCarriedOut">-</td><td id="iotUsersOut">-</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box note">
+    <div id="iotNote">IoT note will appear here.</div>
+    <div id="urllcNote">URLLC note will appear here.</div>
+    <div id="softNote">Soft slicing note will appear here.</div>
+  </div>
+
+  <script>
+    var updateCount = 0;
+    function el(id) { return document.getElementById(id); }
+    function val(id, fallback) {
+      var x = parseFloat(el(id).value);
+      if (isNaN(x) || x < 0) return fallback;
+      return x;
+    }
+    function fixed(x, d) { return Number(x).toFixed(d); }
+    function calculateSliceSim() {
+      var embbBw = val("embbBw", 25);
+      var urllcBw = val("urllcBw", 15);
+      var iotBw = val("iotBw", 10);
+      var mode = el("sliceMode").value;
+      var priority = el("borrowPriority").value;
+      var embbDemand = val("embbDemand", 80);
+      var sinr = val("sinr", 1.0);
+      var mimo = val("mimo", 1.0);
+      var sla = val("urllcSla", 2);
+      var iotDevices = val("iotDevices", 2000);
+      var iotReports = val("iotReports", 1);
+      var iotPayload = val("iotPayload", 200);
+      var preambles = Math.max(1, val("preambles", 54));
+      var rachOcc = Math.max(1, val("rachOcc", 10));
+      var iotDemandMbps = val("iotKbps", 10) / 1000;
+      var urllcSessions = val("urllcSessions", 60);
+      var urllcPacket = val("urllcPacket", 160);
+      var urllcRate = val("urllcRate", 20);
+
+      var embbEta = 5.5 * sinr * mimo * 0.82 * 0.86;
+      var urllcEta = 3.6 * sinr * mimo * 0.90 * 0.72 * 0.82;
+      var iotEtaData = 1.7 * sinr * mimo * 1.00 * 0.62;
+
+      var attemptsPerSec = iotDevices * iotReports / 60;
+      var attemptsPerOccasion = attemptsPerSec / rachOcc;
+      var successProb = Math.exp(-attemptsPerOccasion / preambles);
+      if (successProb < 0.08) successProb = 0.08;
+      var grantsPerSec = Math.min(attemptsPerSec, rachOcc * preambles * successProb);
+      var rachPayloadMbps = grantsPerSec * iotPayload * 8 / 1000000;
+      var offeredUrlLcMbps = urllcSessions * urllcPacket * 8 * urllcRate / 1000000;
+
+      var iotDemandByDevices = iotDevices * iotDemandMbps;
+      var iotEffectiveDemand = Math.min(iotDemandByDevices, rachPayloadMbps);
+      var embbNeedBw = embbEta > 0 ? embbDemand / embbEta : 0;
+      var urllcNeedBw = urllcEta > 0 ? offeredUrlLcMbps / urllcEta : 0;
+      var iotNeedBw = iotEtaData > 0 ? iotEffectiveDemand / iotEtaData : 0;
+
+      var embbUnused = Math.max(0, embbBw - embbNeedBw);
+      var urllcUnused = Math.max(0, urllcBw - urllcNeedBw);
+      var iotUnused = Math.max(0, iotBw - iotNeedBw);
+      var poolStart = mode === "soft" ? embbUnused + urllcUnused + iotUnused : 0;
+      var pool = poolStart;
+
+      var embbDef = Math.max(0, embbNeedBw - embbBw);
+      var urllcDef = Math.max(0, urllcNeedBw - urllcBw);
+      var iotDef = Math.max(0, iotNeedBw - iotBw);
+      var embbBorrow = 0;
+      var urllcBorrow = 0;
+      var iotBorrow = 0;
+
+      function take(x) {
+        var y = Math.min(pool, x);
+        pool = pool - y;
+        return y;
+      }
+
+      if (mode === "soft") {
+        if (priority === "sla") {
+          urllcBorrow = take(urllcDef);
+          embbBorrow = take(embbDef);
+          iotBorrow = take(iotDef);
+        } else {
+          var totalDef = embbDef + urllcDef + iotDef;
+          if (totalDef > 0) {
+            var proportionalPool = pool;
+            embbBorrow = Math.min(embbDef, proportionalPool * embbDef / totalDef);
+            urllcBorrow = Math.min(urllcDef, proportionalPool * urllcDef / totalDef);
+            iotBorrow = Math.min(iotDef, proportionalPool * iotDef / totalDef);
+            pool = Math.max(0, pool - embbBorrow - urllcBorrow - iotBorrow);
+          }
+        }
+      }
+
+      var embbBaseUse = Math.min(embbBw, embbNeedBw);
+      var urllcBaseUse = Math.min(urllcBw, urllcNeedBw);
+      var iotBaseUse = Math.min(iotBw, iotNeedBw);
+      var embbFinalBw = embbBaseUse + embbBorrow;
+      var urllcFinalBw = urllcBaseUse + urllcBorrow;
+      var iotFinalBw = iotBaseUse + iotBorrow;
+      var embbCap = embbFinalBw * embbEta;
+      var urllcCap = urllcFinalBw * urllcEta;
+      var iotDataCap = iotFinalBw * iotEtaData;
+      var embbBorrowCap = embbBorrow * embbEta;
+      var urllcBorrowCap = urllcBorrow * urllcEta;
+      var iotBorrowCap = iotBorrow * iotEtaData;
+      var totalBorrow = embbBorrow + urllcBorrow + iotBorrow;
+      var totalBorrowCap = embbBorrowCap + urllcBorrowCap + iotBorrowCap;
+      var totalDef = embbDef + urllcDef + iotDef;
+      var iotCap = Math.min(iotDataCap, rachPayloadMbps);
+      var iotEta = iotFinalBw > 0 ? iotCap / iotFinalBw : 0;
+      var iotBottleneck = rachPayloadMbps < iotDataCap ? "RACH/control" : "Data PRBs";
+
+      var embbCarried = Math.min(embbDemand, embbCap);
+      var urllcCarried = Math.min(offeredUrlLcMbps, urllcCap);
+      var iotCarried = Math.min(iotDemandByDevices, iotCap);
+      var util = offeredUrlLcMbps / Math.max(urllcCap, 0.1);
+      if (util > 0.98) util = 0.98;
+      var slotMs = 0.25;
+      var processingMs = 0.35;
+      var reliabilityMs = sla <= 1 ? 0.25 : 0.12;
+      var jitterMs = sinr < 0.7 ? 0.45 : sinr < 1.1 ? 0.18 : 0.08;
+      var queueMs = slotMs * util / Math.max(0.04, 1 - util);
+      var latencyMs = slotMs + processingMs + reliabilityMs + jitterMs + queueMs;
+      var total = embbCarried + urllcCarried + iotCarried;
+      var spectrum = embbBw + urllcBw + iotBw;
+
+      el("totalCap").innerHTML = fixed(total, 1) + " Mbps";
+      el("urllcLatency").innerHTML = fixed(latencyMs, 2) + " ms";
+      el("iotBottleneck").innerHTML = iotBottleneck;
+      el("spectrumTotal").innerHTML = fixed(spectrum, 1) + " MHz";
+      el("borrowPool").innerHTML = fixed(poolStart, 1) + " MHz";
+      el("totalBorrowed").innerHTML = fixed(totalBorrow, 1) + " MHz";
+      el("borrowGain").innerHTML = fixed(totalBorrowCap, 1) + " Mbps";
+      el("totalOverload").innerHTML = fixed(totalDef, 1) + " MHz";
+      el("embbBwOut").innerHTML = fixed(embbBw, 1);
+      el("embbNeedOut").innerHTML = fixed(embbNeedBw, 1);
+      el("embbUnusedOut").innerHTML = fixed(embbUnused, 1);
+      el("embbFinalBwOut").innerHTML = fixed(embbFinalBw, 1);
+      el("embbBorrowOut").innerHTML = fixed(embbBorrow, 1);
+      el("embbBorrowCapOut").innerHTML = fixed(embbBorrowCap, 1);
+      el("embbEtaOut").innerHTML = fixed(embbEta, 2);
+      el("embbCapOut").innerHTML = fixed(embbCap, 1);
+      el("embbCarriedOut").innerHTML = fixed(embbCarried, 1);
+      el("embbUsersOut").innerHTML = Math.floor(embbCarried / 5);
+      el("urllcBwOut").innerHTML = fixed(urllcBw, 1);
+      el("urllcNeedOut").innerHTML = fixed(urllcNeedBw, 1);
+      el("urllcUnusedOut").innerHTML = fixed(urllcUnused, 1);
+      el("urllcFinalBwOut").innerHTML = fixed(urllcFinalBw, 1);
+      el("urllcBorrowOut").innerHTML = fixed(urllcBorrow, 1);
+      el("urllcBorrowCapOut").innerHTML = fixed(urllcBorrowCap, 1);
+      el("urllcEtaOut").innerHTML = fixed(urllcEta, 2);
+      el("urllcCapOut").innerHTML = fixed(urllcCap, 1);
+      el("urllcCarriedOut").innerHTML = fixed(urllcCarried, 1);
+      el("urllcUsersOut").innerHTML = Math.floor(urllcCarried / 0.5);
+      el("iotBwOut").innerHTML = fixed(iotBw, 1);
+      el("iotNeedOut").innerHTML = fixed(iotNeedBw, 1);
+      el("iotUnusedOut").innerHTML = fixed(iotUnused, 1);
+      el("iotFinalBwOut").innerHTML = fixed(iotFinalBw, 1);
+      el("iotBorrowOut").innerHTML = fixed(iotBorrow, 1);
+      el("iotBorrowCapOut").innerHTML = fixed(iotBorrowCap, 1);
+      el("iotEtaOut").innerHTML = fixed(iotEta, 3);
+      el("iotCapOut").innerHTML = fixed(iotCap, 3);
+      el("iotCarriedOut").innerHTML = fixed(iotCarried, 3);
+      el("iotUsersOut").innerHTML = Math.floor(iotCarried / Math.max(iotDemandMbps, 0.0001));
+      el("iotNote").innerHTML = "IoT PRACH: " + fixed(attemptsPerSec, 1) + " attempts/sec, " + fixed(grantsPerSec, 1) + " successful grants/sec, access payload limit " + fixed(rachPayloadMbps, 3) + " Mbps.";
+      el("urllcNote").innerHTML = "URLLC: offered load " + fixed(offeredUrlLcMbps, 2) + " Mbps, utilization " + fixed(util * 100, 1) + "%. Latency includes slot, processing, reliability, jitter, and queueing.";
+      el("softNote").innerHTML = mode === "soft"
+        ? "Soft slicing: unused reserved spectrum was pooled. Initial pool " + fixed(poolStart, 1) + " MHz; borrowed MHz: eMBB " + fixed(embbBorrow, 1) + ", URLLC " + fixed(urllcBorrow, 1) + ", IoT " + fixed(iotBorrow, 1) + ". Borrowed capacity gain " + fixed(totalBorrowCap, 1) + " Mbps. Remaining unused pool " + fixed(pool, 1) + " MHz."
+        : "Hard slicing: each slice used only its reserved spectrum. No borrowing was allowed.";
+      el("urllcLatency").className = latencyMs > sla ? "value bad" : "value";
+      el("spectrumTotal").className = Math.abs(spectrum - 50) > 0.01 ? "value bad" : "value";
+      updateCount = updateCount + 1;
+      el("status").innerHTML = "CALCULATED " + updateCount;
+    }
+  </script>
+</body>
+</html>
